@@ -558,6 +558,10 @@ Thanks to the following open source projects and services:
 - [Alpha Vantage](https://www.alphavantage.co/) - Financial data API
 - [Jina AI](https://jina.ai/) - Information search service
 
+## Disclaimer
+
+The materials provided by the AI-Trader project are for research purposes only and do not constitute any investment advice. Investors should seek independent professional advice before making any investment decisions. Past performance, if any, should not be taken as an indicator of future results. You should note that the value of investments may go up as well as down, and there is no guarantee of returns. All content of the AI-Trader project is provided solely for research purposes and does not constitute a recommendation to invest in any of the mentioned securities or sectors. Investing involves risks. Please seek professional advice if needed.
+
 ---
 
 <div align="center">

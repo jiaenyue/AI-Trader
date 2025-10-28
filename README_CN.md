@@ -564,6 +564,10 @@ class CustomTool:
 - [Alpha Vantage](https://www.alphavantage.co/) - 金融数据API
 - [Jina AI](https://jina.ai/) - 信息搜索服务
 
+## 免责声明
+
+AI-Trader项目所提供的资料仅供研究之用，并不构成任何投资建议。投资者在作出任何投资决策之前，应寻求独立专业意见。任何过往表现未必可作为未来业绩的指标。阁下应注意，投资价值可能上升亦可能下跌，且并无任何保证。AI-Trader项目的所有内容仅作研究之用，并不构成对所提及之证券／行业的任何投资推荐。投资涉及风险。如有需要，请寻求专业咨询。
+
 ---
 
 <div align="center">
