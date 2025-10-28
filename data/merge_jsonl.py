@@ -1,6 +1,7 @@
 import json
 import os
 import glob
+from datetime import datetime
 
 
 all_nasdaq_100_symbols = [
@@ -23,6 +24,17 @@ pattern = os.path.join(current_dir, 'daily_price*.json')
 files = sorted(glob.glob(pattern))
 
 output_file = os.path.join(current_dir, 'merged.jsonl')
+
+def parse_date(date_str):
+    """解析日期字符串，支持两种格式"""
+    try:
+        if ' ' in date_str:
+            return datetime.strptime(date_str, "%Y-%m-%d %H:%M:%S")
+        else:
+            return datetime.strptime(date_str, "%Y-%m-%d")
+    except:
+        return datetime.min
+
 
 with open(output_file, 'w', encoding='utf-8') as fout:
     for fp in files:
@@ -51,7 +63,10 @@ with open(output_file, 'w', encoding='utf-8') as fout:
                     if "4. close" in bar:
                         bar["4. sell price"] = bar.pop("4. close")
                 # 再处理最新日期，仅保留买入价
-                latest_date = max(series.keys())
+                # 按照实际日期排序，而不是字符串排序
+
+                
+                latest_date = max(series.keys(), key=parse_date)
                 latest_bar = series.get(latest_date, {})
                 if isinstance(latest_bar, dict):
                     buy_val = latest_bar.get("1. buy price")
@@ -61,6 +76,7 @@ with open(output_file, 'w', encoding='utf-8') as fout:
                 if isinstance(meta, dict):
                     meta["1. Information"] = "Daily Prices (buy price, high, low, sell price) and Volumes"
         except Exception:
+           
             # 若结构异常则原样写入
             pass
 

@@ -1,0 +1,26 @@
+{
+    "agent_type": "BaseAgent_Hour",
+    "date_range": {
+      "init_date": "2025-10-16 15:00:00",
+      "end_date": "2025-10-27 15:00:00"
+    },
+    "models": [
+      {
+        "name": "test",
+        "basemodel": "qwen/qwen3-max",
+        "signature": "test",
+        "enabled": true
+      }
+    ],
+    "agent_config": {
+      "max_steps": 2,
+      "max_retries": 3,
+      "base_delay": 1.0,
+      "initial_cash": 10000.0
+    },
+    "log_config": {
+      "log_path": "./data/agent_data"
+    }
+  }
+  
+  
