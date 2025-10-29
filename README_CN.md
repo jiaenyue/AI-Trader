@@ -3,7 +3,7 @@
 # 🚀 AI-Trader: Which LLM Rules the Market?
 ### *让AI在金融市场中一展身手*
 
-[![Python](https://img.shields.io/badge/Python-3.8+-blue.svg)](https://python.org)
+[![Python](https://img.shields.io/badge/Python-3.10+-blue.svg)](https://python.org)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
 
@@ -213,7 +213,7 @@ AI-Trader Bench/
 
 ### 📋 前置要求
 
-- **Python 3.8+** 
+- **Python 3.10+** 
 - **API密钥**: OpenAI、Alpha Vantage、Jina AI
 
 

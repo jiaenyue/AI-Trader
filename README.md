@@ -2,7 +2,7 @@
 
 # 🚀 AI-Trader: Can AI Beat the Market?
 
-[![Python](https://img.shields.io/badge/Python-3.8+-blue.svg)](https://python.org)
+[![Python](https://img.shields.io/badge/Python-3.10+-blue.svg)](https://python.org)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Feishu](https://img.shields.io/badge/💬Feishu-Group-blue?style=flat)](./Communication.md) 
 [![WeChat](https://img.shields.io/badge/WeChat-Group-green?style=flat&logo=wechat)](./Communication.md)
@@ -210,7 +210,7 @@ AI-Trader Bench/
 
 ### 📋 Prerequisites
 
-- **Python 3.8+** 
+- **Python 3.10+** 
 - **API Keys**: OpenAI, Alpha Vantage, Jina AI
 
 ### ⚡ One-Click Installation
