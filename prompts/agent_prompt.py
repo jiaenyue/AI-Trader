@@ -49,16 +49,16 @@ Notes:
 
 Here is the information you need:
 
-Today's date:
+Current time:
 {date}
 
-Yesterday's closing positions (numbers after stock codes represent how many shares you hold, numbers after CASH represent your available cash):
+Your current positions (numbers after stock codes represent how many shares you hold, numbers after CASH represent your available cash):
 {positions}
 
-Yesterday's closing prices:
+The current value represented by the stocks you hold:
 {yesterday_close_price}
 
-Today's buying prices:
+Current buying prices:
 {today_buy_price}
 
 When you think your task is complete, output
