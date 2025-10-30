@@ -1,0 +1,3 @@
+{"signature": "test-deepseek-chat-v3.1", "new_messages": [{"role": "user", "content": "Please analyze and update today's (2025-10-27 16:00:00) positions."}]}
+{"signature": "test-deepseek-chat-v3.1", "new_messages": {"role": "assistant", "content": "I'll analyze your current portfolio positions and update them based on the current market prices. Let me start by calculating the total value of your current holdings."}}
+{"signature": "test-deepseek-chat-v3.1", "new_messages": {"role": "user", "content": "Tool results: 1914.3000000000002\n1594.23\n1343.7\n538.54\n453.97\n1501.92\n1085.8799999999999\n519.28"}}
