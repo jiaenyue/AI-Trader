@@ -50,6 +50,7 @@ class BaseAgent_Hour(BaseAgent):
         
         # Set up logging
         log_file = self._setup_logging(today_date)
+        write_config_value("LOG_FILE", log_file)
         
         # Update system prompt
         from langchain.agents import create_agent
@@ -236,7 +237,7 @@ class BaseAgent_Hour(BaseAgent):
             print("REGISTER date will not be considered")
             trading_times = trading_times[1:]
         return trading_times
-        
+
     async def run_date_range(self, init_date: str, end_date: str) -> None:
         """
         Run all trading days in date range

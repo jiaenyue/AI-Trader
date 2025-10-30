@@ -46,13 +46,25 @@ def get_price_local(symbol: str, date: str) -> Dict[str, Any]:
         Dictionary containing symbol, date and ohlcv data.
     """
     # Detect date format
+    result = None
     if ' ' in date or 'T' in date:
         # Contains time component, use hourly
-        return get_price_local_hourly(symbol, date)
+        result =  get_price_local_hourly(symbol, date)
     else:
         # Date only, use daily
-        return get_price_local_daily(symbol, date)
-
+        result = get_price_local_daily(symbol, date)
+    
+    # log_file = get_config_value("LOG_FILE")
+    # signature = get_config_value("SIGNATURE")
+    
+    # log_entry = {
+    #     "signature": signature,
+    #     "new_messages": [{"role": "tool:get_price_local", "content": result}]
+    # }
+    # with open(log_file, "a", encoding="utf-8") as f:
+    #     f.write(json.dumps(log_entry, ensure_ascii=False) + "\n")
+    
+    return result
 
 
 
