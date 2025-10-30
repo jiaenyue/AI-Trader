@@ -114,8 +114,24 @@ function updateStats() {
 
     // Update DOM
     document.getElementById('agent-count').textContent = agentCount;
+
+    // Format date range for hourly data - show only dates without time
+    const formatDateRange = (dateStr) => {
+        if (!dateStr) return 'N/A';
+        // If the date includes time (hourly format), format date only
+        if (dateStr.includes(':')) {
+            const date = new Date(dateStr);
+            return date.toLocaleString('en-US', {
+                month: 'short',
+                day: 'numeric',
+                year: 'numeric'
+            });
+        }
+        return dateStr;
+    };
+
     document.getElementById('trading-period').textContent = minDate && maxDate ?
-        `${minDate} to ${maxDate}` : 'N/A';
+        `${formatDateRange(minDate)} to ${formatDateRange(maxDate)}` : 'N/A';
     document.getElementById('best-performer').textContent = bestAgent ?
         dataLoader.getAgentDisplayName(bestAgent) : 'N/A';
     document.getElementById('avg-return').textContent = bestAgent ?
@@ -262,20 +278,132 @@ function createChart() {
                     display: false
                 },
                 tooltip: {
-                    backgroundColor: 'rgba(26, 34, 56, 0.95)',
-                    titleColor: '#00d4ff',
-                    bodyColor: '#fff',
-                    borderColor: '#2d3748',
-                    borderWidth: 1,
-                    padding: 12,
-                    displayColors: true,
-                    callbacks: {
-                        label: function(context) {
-                            const label = context.dataset.label || '';
-                            const value = dataLoader.formatCurrency(context.parsed.y);
-                            // Tooltips don't support images, so just show label and value
-                            return `${label}: ${value}`;
+                    enabled: false,
+                    external: function(context) {
+                        // Custom HTML tooltip
+                        const tooltipModel = context.tooltip;
+                        let tooltipEl = document.getElementById('chartjs-tooltip');
+
+                        // Create element on first render
+                        if (!tooltipEl) {
+                            tooltipEl = document.createElement('div');
+                            tooltipEl.id = 'chartjs-tooltip';
+                            tooltipEl.innerHTML = '<div class="tooltip-container"></div>';
+                            document.body.appendChild(tooltipEl);
                         }
+
+                        // Hide if no tooltip
+                        if (tooltipModel.opacity === 0) {
+                            tooltipEl.style.opacity = 0;
+                            return;
+                        }
+
+                        // Set Text
+                        if (tooltipModel.body) {
+                            const dataPoints = tooltipModel.dataPoints || [];
+
+                            // Sort data points by value at this time point (descending)
+                            const sortedPoints = [...dataPoints].sort((a, b) => {
+                                const valueA = a.parsed.y || 0;
+                                const valueB = b.parsed.y || 0;
+                                return valueB - valueA;
+                            });
+
+                            // Format title (date/time)
+                            const titleLines = tooltipModel.title || [];
+                            let titleHtml = '';
+                            if (titleLines.length > 0) {
+                                const dateStr = titleLines[0];
+                                if (dateStr && dateStr.includes(':')) {
+                                    const date = new Date(dateStr);
+                                    titleHtml = date.toLocaleString('en-US', {
+                                        month: 'short',
+                                        day: 'numeric',
+                                        year: 'numeric',
+                                        hour: '2-digit',
+                                        minute: '2-digit'
+                                    });
+                                } else {
+                                    titleHtml = dateStr;
+                                }
+                            }
+
+                            // Build body HTML with logos and ranked data
+                            let innerHtml = `<div class="tooltip-title">${titleHtml}</div>`;
+                            innerHtml += '<div class="tooltip-body">';
+
+                            sortedPoints.forEach((dataPoint, index) => {
+                                const dataset = dataPoint.dataset;
+                                const agentName = dataset.agentName;
+                                const displayName = dataset.label;
+                                const value = dataPoint.parsed.y;
+                                const icon = dataLoader.getAgentIcon(agentName);
+                                const color = dataset.borderColor;
+
+                                // Add ranking badge
+                                const rankBadge = `<span class="rank-badge">#${index + 1}</span>`;
+
+                                innerHtml += `
+                                    <div class="tooltip-row">
+                                        ${rankBadge}
+                                        <img src="${icon}" class="tooltip-icon" alt="${displayName}">
+                                        <span class="tooltip-label" style="color: ${color}">${displayName}</span>
+                                        <span class="tooltip-value">${dataLoader.formatCurrency(value)}</span>
+                                    </div>
+                                `;
+                            });
+
+                            innerHtml += '</div>';
+
+                            const container = tooltipEl.querySelector('.tooltip-container');
+                            container.innerHTML = innerHtml;
+                        }
+
+                        const position = context.chart.canvas.getBoundingClientRect();
+                        const tooltipWidth = tooltipEl.offsetWidth || 300;
+                        const tooltipHeight = tooltipEl.offsetHeight || 200;
+
+                        // Smart positioning to prevent overflow
+                        let left = position.left + window.pageXOffset + tooltipModel.caretX;
+                        let top = position.top + window.pageYOffset + tooltipModel.caretY;
+
+                        // Offset to prevent covering the hover point
+                        const offset = 15;
+                        left += offset;
+                        top -= offset;
+
+                        // Check if tooltip would go off right edge
+                        const viewportWidth = window.innerWidth;
+                        const viewportHeight = window.innerHeight;
+
+                        if (left + tooltipWidth > viewportWidth - 20) {
+                            // Position to the left of the cursor instead
+                            left = position.left + window.pageXOffset + tooltipModel.caretX - tooltipWidth - offset;
+                        }
+
+                        // Check if tooltip would go off bottom edge
+                        if (top + tooltipHeight > viewportHeight - 20) {
+                            top = viewportHeight - tooltipHeight - 20;
+                        }
+
+                        // Check if tooltip would go off top edge
+                        if (top < 20) {
+                            top = 20;
+                        }
+
+                        // Check if tooltip would go off left edge
+                        if (left < 20) {
+                            left = 20;
+                        }
+
+                        // Display, position, and set styles
+                        tooltipEl.style.opacity = 1;
+                        tooltipEl.style.position = 'absolute';
+                        tooltipEl.style.left = left + 'px';
+                        tooltipEl.style.top = top + 'px';
+                        tooltipEl.style.pointerEvents = 'none';
+                        tooltipEl.style.transition = 'opacity 0.2s ease, transform 0.2s ease';
+                        tooltipEl.style.transform = 'translateZ(0)'; // GPU acceleration
                     }
                 }
             },
@@ -293,9 +421,25 @@ function createChart() {
                         maxRotation: 45,
                         minRotation: 45,
                         autoSkip: true,
-                        maxTicksLimit: 10,
+                        maxTicksLimit: 15,
                         font: {
                             size: 11
+                        },
+                        callback: function(value, index) {
+                            // Format hourly timestamps for better readability
+                            const dateStr = this.getLabelForValue(value);
+                            if (!dateStr) return '';
+
+                            // If it's an hourly timestamp (contains time)
+                            if (dateStr.includes(':')) {
+                                const date = new Date(dateStr);
+                                // Show date and hour
+                                const month = (date.getMonth() + 1).toString().padStart(2, '0');
+                                const day = date.getDate().toString().padStart(2, '0');
+                                const hour = date.getHours().toString().padStart(2, '0');
+                                return `${month}/${day} ${hour}:00`;
+                            }
+                            return dateStr;
                         }
                     }
                 },

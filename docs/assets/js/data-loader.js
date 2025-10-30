@@ -5,36 +5,39 @@ class DataLoader {
     constructor() {
         this.agentData = {};
         this.priceCache = {};
-        // Use 'data' for GitHub Pages deployment, '../data' for local development
+        this.config = null;
         this.baseDataPath = './data';
     }
 
-    // Load all agent names from directory structure
-    async loadAgentList() {
-        try {
-            // Since we can't directly list directories in the browser,
-            // we'll try to load known agents based on common patterns
-            const potentialAgents = [
-                'gemini-2.5-flash',
-                'qwen3-max',
-                'deepseek-chat-v3.1',
-                'gpt-5',
-                'claude-3.7-sonnet',
-            ];
+    // Initialize with configuration
+    async initialize() {
+        if (!this.config) {
+            this.config = await window.configLoader.loadConfig();
+            this.baseDataPath = window.configLoader.getDataPath();
+        }
+    }
 
+    // Load all agent names from configuration
+    async loadAgentList() {
+        // Ensure config is loaded
+        await this.initialize();
+
+        try {
+            const enabledAgents = window.configLoader.getEnabledAgents();
             const agents = [];
-            for (const agent of potentialAgents) {
+
+            for (const agentConfig of enabledAgents) {
                 try {
-                    console.log(`Checking agent: ${agent}`);
-                    const response = await fetch(`${this.baseDataPath}/agent_data/${agent}/position/position.jsonl`);
+                    console.log(`Checking agent: ${agentConfig.folder}`);
+                    const response = await fetch(`${this.baseDataPath}/agent_data/${agentConfig.folder}/position/position.jsonl`);
                     if (response.ok) {
-                        agents.push(agent);
-                        console.log(`Added agent: ${agent}`);
+                        agents.push(agentConfig.folder);
+                        console.log(`Added agent: ${agentConfig.folder}`);
                     } else {
-                        console.log(`Agent ${agent} not found (status: ${response.status})`);
+                        console.log(`Agent ${agentConfig.folder} not found (status: ${response.status})`);
                     }
                 } catch (e) {
-                    console.log(`Agent ${agent} error:`, e.message);
+                    console.log(`Agent ${agentConfig.folder} error:`, e.message);
                 }
             }
 
@@ -77,11 +80,13 @@ class DataLoader {
         }
 
         try {
-            const response = await fetch(`${this.baseDataPath}/daily_prices_${symbol}.json`);
+            const priceFilePrefix = window.configLoader.getPriceFilePrefix();
+            const response = await fetch(`${this.baseDataPath}/${priceFilePrefix}${symbol}.json`);
             if (!response.ok) throw new Error(`Failed to load price for ${symbol}`);
 
             const data = await response.json();
-            this.priceCache[symbol] = data['Time Series (Daily)'];
+            // Support both hourly (60min) and daily data formats
+            this.priceCache[symbol] = data['Time Series (60min)'] || data['Time Series (Daily)'];
             return this.priceCache[symbol];
         } catch (error) {
             console.error(`Error loading price for ${symbol}:`, error);
@@ -128,33 +133,33 @@ class DataLoader {
         }
 
         console.log(`Processing ${positions.length} positions for ${agentName}...`);
-        
-        // Group positions by date and take only the last position for each date
-        const positionsByDate = {};
+
+        // Group positions by timestamp and take only the last position for each timestamp
+        const positionsByTimestamp = {};
         positions.forEach(position => {
-            const date = position.date;
-            if (!positionsByDate[date] || position.id > positionsByDate[date].id) {
-                positionsByDate[date] = position;
+            const timestamp = position.date;
+            if (!positionsByTimestamp[timestamp] || position.id > positionsByTimestamp[timestamp].id) {
+                positionsByTimestamp[timestamp] = position;
             }
         });
-        
-        // Convert to array and sort by date
-        const uniquePositions = Object.values(positionsByDate).sort((a, b) => {
+
+        // Convert to array and sort by timestamp
+        const uniquePositions = Object.values(positionsByTimestamp).sort((a, b) => {
             if (a.date !== b.date) {
                 return a.date.localeCompare(b.date);
             }
             return a.id - b.id;
         });
-        
-        console.log(`Reduced from ${positions.length} to ${uniquePositions.length} unique daily positions for ${agentName}`);
-        
+
+        console.log(`Reduced from ${positions.length} to ${uniquePositions.length} unique hourly positions for ${agentName}`);
+
         const assetHistory = [];
 
         for (const position of uniquePositions) {
-            const date = position.date;
-            const assetValue = await this.calculateAssetValue(position, date);
+            const timestamp = position.date;
+            const assetValue = await this.calculateAssetValue(position, timestamp);
             assetHistory.push({
-                date: date,
+                date: timestamp,
                 value: assetValue,
                 id: position.id,
                 action: position.this_action || null
@@ -186,11 +191,13 @@ class DataLoader {
     async loadQQQData() {
         try {
             console.log('Loading QQQ invesco data...');
-            const response = await fetch(`${this.baseDataPath}/Adaily_prices_QQQ.json`);
+            const benchmarkFile = window.configLoader.getBenchmarkFile();
+            const response = await fetch(`${this.baseDataPath}/${benchmarkFile}`);
             if (!response.ok) throw new Error('Failed to load QQQ data');
-            
+
             const data = await response.json();
-            const timeSeries = data['Time Series (Daily)'];
+            // Support both hourly (60min) and daily data formats
+            const timeSeries = data['Time Series (60min)'] || data['Time Series (Daily)'];
             
             // Convert to asset history format
             const assetHistory = [];
@@ -198,7 +205,8 @@ class DataLoader {
             
             // Calculate QQQ performance starting from first agent's initial value
             const agentNames = Object.keys(this.agentData);
-            let initialValue = 10000; // Default initial value
+            const uiConfig = window.configLoader.getUIConfig();
+            let initialValue = uiConfig.initial_value; // Default initial value from config
             
             if (agentNames.length > 0) {
                 const firstAgent = this.agentData[agentNames[0]];
@@ -250,9 +258,9 @@ class DataLoader {
                     action: null
                 });
             }
-            
+
             const result = {
-                name: 'QQQ',
+                name: window.configLoader.getBenchmarkConfig().folder,
                 positions: [],
                 assetHistory: assetHistory,
                 initialValue: initialValue,
@@ -260,8 +268,8 @@ class DataLoader {
                 return: assetHistory.length > 0 ?
                     ((assetHistory[assetHistory.length - 1].value - assetHistory[0].value) / assetHistory[0].value * 100) : 0
             };
-            
-            console.log('Successfully loaded QQQ data:', {
+
+            console.log('Successfully loaded benchmark data:', {
                 assetHistory: assetHistory.length,
                 initialValue: result.initialValue,
                 currentValue: result.currentValue,
@@ -295,14 +303,17 @@ class DataLoader {
 
         console.log('Final allData:', Object.keys(allData));
         this.agentData = allData;
-        
-        // Load QQQ invesco data
-        const qqqData = await this.loadQQQData();
-        if (qqqData) {
-            allData['QQQ'] = qqqData;
-            console.log('Successfully added QQQ invesco to allData');
+
+        // Load benchmark data if enabled
+        const benchmarkConfig = window.configLoader.getBenchmarkConfig();
+        if (benchmarkConfig && benchmarkConfig.enabled) {
+            const benchmarkData = await this.loadQQQData();
+            if (benchmarkData) {
+                allData[benchmarkConfig.folder] = benchmarkData;
+                console.log(`Successfully added ${benchmarkConfig.display_name} to allData`);
+            }
         }
-        
+
         return allData;
     }
 
@@ -348,52 +359,23 @@ class DataLoader {
 
     // Get nice display name for agent
     getAgentDisplayName(agentName) {
-        const names = {
-            'gemini-2.5-flash': 'Gemini-2.5-flash',
-            'qwen3-max': 'Qwen3-max',
-            'gpt-5': 'GPT-5',
-            'deepseek-chat-v3.1': 'DeepSeek-v3.1',
-            'claude-3.7-sonnet': 'Claude 3.7 Sonnet',
-            'QQQ': 'QQQ invesco'
-        };
-        return names[agentName] || agentName;
+        return window.configLoader.getDisplayName(agentName);
     }
 
     // Get icon for agent (SVG file path)
     getAgentIcon(agentName) {
-        const icons = {
-            'gemini-2.5-flash': './figs/google.svg',
-            'qwen3-max': './figs/qwen.svg',
-            'gpt-5': './figs/openai.svg',
-            'claude-3.7-sonnet': './figs/claude-color.svg',
-            'deepseek-chat-v3.1': './figs/deepseek.svg',
-            'QQQ': './figs/stock.svg'  // 使用默认图标
-        };
-        return icons[agentName] || './figs/stock.svg';
+        return window.configLoader.getIcon(agentName);
     }
-    
+
     // Get agent name without version suffix for icon lookup
     getAgentIconKey(agentName) {
-        // 处理可能的版本号变体
-        if (agentName.includes('gemini')) return 'gemini-2.5-flash';
-        if (agentName.includes('qwen')) return 'qwen3-max';
-        if (agentName.includes('gpt')) return 'gpt-5';
-        if (agentName.includes('claude')) return 'claude-3.7-sonnet';
-        if (agentName.includes('deepseek')) return 'deepseek-chat-v3.1';
+        // This method is kept for backward compatibility
         return agentName;
     }
 
     // Get brand color for agent
     getAgentBrandColor(agentName) {
-        const colors = {
-            'gemini-2.5-flash': '#8A2BE2',      // Google purple
-            'qwen3-max': '#0066ff',       // Qwen Blue
-            'gpt-5': '#10a37f',                  // OpenAI Green
-            'deepseek-chat-v3.1': '#4a90e2',  // DeepSeek Blue
-            'claude-3.7-sonnet': '#cc785c', // Anthropic Orange
-            'QQQ': '#ff6b00'                       // QQQ Orange
-        };
-        return colors[agentName] || null;
+        return window.configLoader.getColor(agentName);
     }
 }
 
