@@ -69,6 +69,10 @@ async function init() {
         // Create legend
         createLegend();
 
+        // Create leaderboard and action flow
+        await createLeaderboard();
+        await createActionFlow();
+
         // Set up event listeners
         setupEventListeners();
 
@@ -594,6 +598,111 @@ function setupEventListeners() {
 
     // Also handle orientation change for mobile
     window.addEventListener('orientationchange', handleResize);
+}
+
+// Create leaderboard
+async function createLeaderboard() {
+    const leaderboard = await window.transactionLoader.buildLeaderboard(allAgentsData);
+    const container = document.getElementById('leaderboardList');
+    container.innerHTML = '';
+
+    leaderboard.forEach((item, index) => {
+        const rankClass = index === 0 ? 'first' : index === 1 ? 'second' : index === 2 ? 'third' : '';
+        const gainClass = item.gain >= 0 ? 'positive' : 'negative';
+
+        const itemEl = document.createElement('div');
+        itemEl.className = 'leaderboard-item';
+        itemEl.style.animationDelay = `${index * 0.05}s`;
+        itemEl.innerHTML = `
+            <div class="leaderboard-rank ${rankClass}">#${item.rank}</div>
+            <div class="leaderboard-icon">
+                <img src="${item.icon}" alt="${item.displayName}">
+            </div>
+            <div class="leaderboard-info">
+                <div class="leaderboard-name">${item.displayName}</div>
+                <div class="leaderboard-value">${window.transactionLoader.formatCurrency(item.currentValue)}</div>
+            </div>
+            <div class="leaderboard-gain">
+                <div class="gain-amount ${gainClass}">${window.transactionLoader.formatCurrency(item.gain)}</div>
+                <div class="gain-percent ${gainClass}">${window.transactionLoader.formatPercent(item.gainPercent)}</div>
+            </div>
+        `;
+
+        container.appendChild(itemEl);
+    });
+}
+
+// Create action flow
+async function createActionFlow() {
+    // Load all transactions
+    await window.transactionLoader.loadAllTransactions();
+    const recentTransactions = window.transactionLoader.getMostRecentTransactions(100);
+
+    const container = document.getElementById('actionList');
+    container.innerHTML = '';
+
+    // Load thinking for each transaction (limit to first 20 for performance)
+    const transactionsToShow = recentTransactions.slice(0, 20);
+
+    for (let i = 0; i < transactionsToShow.length; i++) {
+        const transaction = transactionsToShow[i];
+        const agentName = transaction.agentFolder;
+        const displayName = window.configLoader.getDisplayName(agentName);
+        const icon = window.configLoader.getIcon(agentName);
+        const actionClass = transaction.action;
+
+        // Load agent's thinking
+        const thinking = await window.transactionLoader.loadAgentThinking(agentName, transaction.date);
+
+        const cardEl = document.createElement('div');
+        cardEl.className = 'action-card';
+        cardEl.style.animationDelay = `${i * 0.03}s`;
+        cardEl.innerHTML = `
+            <div class="action-header">
+                <div class="action-agent-icon">
+                    <img src="${icon}" alt="${displayName}">
+                </div>
+                <div class="action-meta">
+                    <div class="action-agent-name">${displayName}</div>
+                    <div class="action-details">
+                        <span class="action-type ${actionClass}">${transaction.action}</span>
+                        <span class="action-symbol">${transaction.symbol}</span>
+                        <span>×${transaction.amount}</span>
+                    </div>
+                </div>
+                <div class="action-timestamp">${window.transactionLoader.formatDateTime(transaction.date)}</div>
+            </div>
+            <div class="action-body">
+                <div class="action-thinking-label">
+                    <span class="thinking-icon">🧠</span>
+                    Agent Reasoning
+                </div>
+                <div class="action-thinking">${formatThinking(thinking)}</div>
+            </div>
+        `;
+
+        container.appendChild(cardEl);
+    }
+
+    // Add a note if there are more transactions
+    if (recentTransactions.length > 20) {
+        const noteEl = document.createElement('div');
+        noteEl.style.cssText = 'text-align: center; padding: 1rem; color: var(--text-muted); font-size: 0.9rem;';
+        noteEl.textContent = `Showing 20 of ${recentTransactions.length} recent transactions`;
+        container.appendChild(noteEl);
+    }
+}
+
+// Format thinking text into paragraphs
+function formatThinking(text) {
+    // Split by double newlines or numbered lists
+    const paragraphs = text.split(/\n\n+/).filter(p => p.trim());
+
+    if (paragraphs.length === 0) {
+        return `<p>${text}</p>`;
+    }
+
+    return paragraphs.map(p => `<p>${p.trim()}</p>`).join('');
 }
 
 // Loading overlay controls
