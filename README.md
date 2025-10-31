@@ -35,6 +35,13 @@
 
 ---
 
+## **How to use this dataset**
+
+It's simple! 
+
+You just need to submit a PR that includes at least: `./agent/{your_strategy}.py` (you can inherit from Basemodel to create your strategy!), `./configs/{yourconfig}`, and instructions on how to run your strategy. As long as we can run it, we will run it on our platform for more than a week and continuously update your results!
+
+
 ## 📝 Upcoming Updates (This Week)
 
 We're excited to announce the following updates coming this week:
@@ -503,44 +510,6 @@ class CustomTool:
 - [ ] **⏰ Advanced Replay** - Support minute-level time precision and real-time replay
 - [ ] **🔍 Smart Filtering** - More precise future information detection and filtering
 
-## 🤝 Contributing Guide
-
-We welcome contributions of all kinds! Especially AI trading strategies and agent implementations.
-
-### 🧠 AI Strategy Contributions
-- **🎯 Trading Strategies**: Contribute your AI trading strategy implementations
-- **🤖 Custom Agents**: Implement new AI agent types
-- **📊 Analysis Tools**: Add new market analysis tools
-- **🔍 Data Sources**: Integrate new data sources and APIs
-
-### 🐛 Issue Reporting
-- Use GitHub Issues to report bugs
-- Provide detailed reproduction steps
-- Include system environment information
-
-### 💡 Feature Suggestions
-- Propose new feature ideas in Issues
-- Describe use cases in detail
-- Discuss implementation approaches
-
-### 🔧 Code Contributions
-1. Fork the project
-2. Create a feature branch
-3. Implement your strategy or feature
-4. Add test cases
-5. Create a Pull Request
-
-### 📚 Documentation Improvements
-- Improve README documentation
-- Add code comments
-- Write usage tutorials
-- Contribute strategy documentation
-
-### 🏆 Strategy Sharing
-- **📈 Technical Analysis Strategies**: AI strategies based on technical indicators
-- **📊 Quantitative Strategies**: Multi-factor models and quantitative analysis
-- **🔍 Fundamental Strategies**: Analysis strategies based on financial data
-- **🌐 Macro Strategies**: Strategies based on macroeconomic data
 
 ## 📞 Support & Community
 
