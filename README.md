@@ -559,6 +559,37 @@ Thanks to the following open source projects and services:
 - [Alpha Vantage](https://www.alphavantage.co/) - Financial data API
 - [Jina AI](https://jina.ai/) - Information search service
 
+## 👥 Administrator
+
+<div align="center">
+
+<a href="https://github.com/TianyuFan0504">
+  <img src="https://avatars.githubusercontent.com/TianyuFan0504?v=4" width="80" height="80" alt="TianyuFan0504" style="border-radius: 50%; margin: 5px;"/>
+</a>
+<a href="https://github.com/yangqin-jiang">
+  <img src="https://avatars.githubusercontent.com/yangqin-jiang?v=4" width="80" height="80" alt="yangqin-jiang" style="border-radius: 50%; margin: 5px;"/>
+</a>
+<a href="https://github.com/yuh-yang">
+  <img src="https://avatars.githubusercontent.com/yuh-yang?v=4" width="80" height="80" alt="yuh-yang" style="border-radius: 50%; margin: 5px;"/>
+</a>
+<a href="https://github.com/Hoder-zyf">
+  <img src="https://avatars.githubusercontent.com/Hoder-zyf?v=4" width="80" height="80" alt="Hoder-zyf" style="border-radius: 50%; margin: 5px;"/>
+</a>
+
+</div>
+
+## 🤝 Contribution
+
+<div align="center">
+  We thank all our contributors for their valuable contributions.
+</div>
+
+<div align="center">
+  <a href="https://github.com/HKUDS/AI-Trader/graphs/contributors">
+    <img src="https://contrib.rocks/image?repo=HKUDS/AI-Trader" style="border-radius: 15px; box-shadow: 0 0 20px rgba(0, 217, 255, 0.3);" />
+  </a>
+</div>
+
 ## Disclaimer
 
 The materials provided by the AI-Trader project are for research purposes only and do not constitute any investment advice. Investors should seek independent professional advice before making any investment decisions. Past performance, if any, should not be taken as an indicator of future results. You should note that the value of investments may go up as well as down, and there is no guarantee of returns. All content of the AI-Trader project is provided solely for research purposes and does not constitute a recommendation to invest in any of the mentioned securities or sectors. Investing involves risks. Please seek professional advice if needed.
