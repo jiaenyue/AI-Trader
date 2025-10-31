@@ -118,7 +118,7 @@ def buy(symbol: str, amount: int) -> Dict[str, Any]:
         # Use append mode ("a") to write new transaction record
         # Each operation ID increments by 1, ensuring uniqueness of operation sequence
         position_file_path = os.path.join(project_root, "data", "agent_data", signature, "position", "position.jsonl")
-        os.makedirs(os.path.dirname(position_file_path), exist_ok=True)
+        # os.makedirs(os.path.dirname(position_file_path), exist_ok=True)
         with _position_lock(signature):
             with open(position_file_path, "a") as f:
                 # Write JSON format transaction record, containing date, operation ID, transaction details and updated position
@@ -206,7 +206,7 @@ def sell(symbol: str, amount: int) -> Dict[str, Any]:
     # Use append mode ("a") to write new transaction record
     # Each operation ID increments by 1, ensuring uniqueness of operation sequence
     position_file_path = os.path.join(project_root, "data", "agent_data", signature, "position", "position.jsonl")
-    os.makedirs(os.path.dirname(position_file_path), exist_ok=True)
+    # os.makedirs(os.path.dirname(position_file_path), exist_ok=True)
     with _position_lock(signature):
         with open(position_file_path, "a") as f:
             # Write JSON format transaction record, containing date, operation ID and updated position
