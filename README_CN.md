@@ -1,6 +1,6 @@
 <div align="center">
 
-# 🚀 AI-Trader: Which LLM Rules the Market?
+# 🚀 AI-Trader: AI能否战胜市场？
 ### *让AI在金融市场中一展身手*
 
 [![Python](https://img.shields.io/badge/Python-3.10+-blue.svg)](https://python.org)
@@ -14,17 +14,17 @@
 
 <div align="center">
 
-### 🥇 **锦标赛期间：(Last Update 2025/10/29)**
+### 🥇 **锦标赛期间：(最后更新 2025/10/29)**
 
-| 🏆 Rank | 🤖 AI Model | 📈 Total Earnings | 
+| 🏆 排名 | 🤖 AI 模型 | 📈 总收益 |
 |---------|-------------|----------------|
-| **🥇 1st** | **DeepSeek** | 🚀 +16.46% |
-| 🥈 2nd | MiniMax-M2 | 📊 +12.03% |
-| 🥉 3rd | GPT-5 | 📊 +9.98% |
-| 4th | Claude-3.7 | 📊 +9.80% |
-| 5th | Qwen3-max | 📊 +7.96% |
-| Baseline | QQQ | 📊 +5.39% |
-| 6th | Gemini-2.5-flash | 📊 +0.48% |
+| **🥇 第一** | **DeepSeek** | 🚀 +16.46% |
+| 🥈 第二 | MiniMax-M2 | 📊 +12.03% |
+| 🥉 第三 | GPT-5 | 📊 +9.98% |
+| 第四 | Claude-3.7 | 📊 +9.80% |
+| 第五 | Qwen3-max | 📊 +7.96% |
+| 基准 | QQQ | 📊 +5.39% |
+| 第六 | Gemini-2.5-flash | 📊 +0.48% |
 
 ### 📊 **实时性能仪表板**
 ![rank](assets/rank.png)
@@ -70,6 +70,7 @@
 - 🔌 **可扩展策略框架**: 支持第三方策略和自定义AI代理集成
 - ⏰ **历史回放功能**: 时间段回放功能，自动过滤未来信息
 
+> **想了解AI是如何进行交易决策的吗？请阅读我们的 [AI-Trader 策略文档](STRATEGY_CN.md)。**
 
 ---
 
@@ -160,63 +161,62 @@ AI只能访问当前时间及之前的数据。不允许未来信息。
 ```
 AI-Trader Bench/
 ├── 🤖 核心系统
-│   ├── main.py    # 🎯 主程序入口
-│   ├── agent/base_agent/          # 🧠 AI代理核心
-│   └── configs/                   # ⚙️ 配置文件
+│   ├── main.py                # 🎯 主程序入口，负责加载配置和启动代理
+│   ├── agent/base_agent/      # 🧠 AI代理核心逻辑
+│   └── configs/               # ⚙️ 配置文件目录
 │
 ├── 🛠️ MCP工具链
 │   ├── agent_tools/
-│   │   ├── tool_trade.py          # 💰 交易执行
-│   │   ├── tool_get_price_local.py # 📊 价格查询
-│   │   ├── tool_jina_search.py   # 🔍 信息搜索
-│   │   └── tool_math.py           # 🧮 数学计算
-│   └── tools/                     # 🔧 辅助工具
+│   │   ├── tool_trade.py      # 💰 交易执行工具 (买/卖)
+│   │   ├── tool_get_price_local.py # 📊 本地价格查询工具
+│   │   ├── tool_jina_search.py   # 🔍 Jina搜索工具，用于获取市场信息
+│   │   └── tool_math.py       # 🧮 数学计算工具
+│   └── tools/                 # 🔧 辅助工具
 │
 ├── 📊 数据系统
 │   ├── data/
-│   │   ├── daily_prices_*.json    # 📈 股票价格数据
-│   │   ├── merged.jsonl           # 🔄 统一数据格式
-│   │   └── agent_data/            # 📝 AI交易记录
-│   └── calculate_performance.py   # 📈 性能分析
+│   │   ├── daily_prices_*.json # 📈 原始股票价格数据
+│   │   ├── merged.jsonl       # 🔄 统一格式的价格数据
+│   │   └── agent_data/        # 📝 AI代理的交易记录和日志
+│   └── tools/result_tools.py  # 📈 性能分析脚本
 │
 ├── 🎨 前端界面
-│   └── frontend/                  # 🌐 Web仪表板
+│   └── docs/                  # 🌐 Web仪表板 (docs作为前端页面)
 │
 └── 📋 配置与文档
-    ├── configs/                   # ⚙️ 系统配置
-    ├── prompts/                   # 💬 AI提示词
-    └── calc_perf.sh              # 🚀 性能计算脚本
+    ├── prompts/               # 💬 AI代理的系统提示
+    └── calc_perf.sh           # 🚀 性能计算脚本
 ```
 
 ### 🔧 核心组件详解
 
 #### 🎯 主程序 (`main.py`)
-- **多模型并发**: 同时运行多个AI模型进行交易
-- **配置管理**: 支持JSON配置文件和环境变量
-- **日期管理**: 灵活的交易日历和日期范围设置
-- **错误处理**: 完善的异常处理和重试机制
+- **动态代理加载**: 根据配置文件中的 `agent_type` 动态加载并实例化对应的代理类。
+- **配置管理**: 支持通过命令行参数指定JSON配置文件，并允许使用环境变量覆盖日期范围。
+- **多模型并发**: 依次为配置文件中启用的每个模型创建代理实例，并按顺序执行其交易周期。
+- **端到端流程**: 负责初始化代理、运行指定日期范围的交易，并输出最终的仓位摘要。
 
-#### 🛠️ MCP工具链
-| 工具 | 功能 | API |
-|------|------|-----|
-| **交易工具** | 买入/卖出股票，持仓管理 | `buy()`, `sell()` |
-| **价格工具** | 实时和历史价格查询 | `get_price_local()` |
-| **搜索工具** | 市场信息搜索 | `get_information()` |
-| **数学工具** | 财务计算和分析 | 基础数学运算 |
+#### 🧠 AI代理核心 (`agent/base_agent/base_agent.py`)
+- **`BaseAgent` 类**: 所有交易代理的基类，封装了与MCP工具的交互、交易会话的管理、日志记录以及仓位维护等核心功能。
+- **交易循环**: `run_trading_session` 方法是交易决策的核心，它在一个循环中调用AI模型进行推理，直到达到最大步数或收到停止信号。
+- **历史回溯**: `get_trading_dates` 方法根据已有的仓位记录和指定的日期范围，智能地计算出需要执行交易的日期列表。
 
-#### 📊 数据系统
-- **📈 价格数据**: 纳斯达克100成分股的完整OHLCV数据
-- **📝 交易记录**: 每个AI模型的详细交易历史
-- **📊 性能指标**: 夏普比率、最大回撤、年化收益等
-- **🔄 数据同步**: 自动化的数据获取和更新机制
+#### 🛠️ MCP工具链 (`agent_tools/`)
+| 工具文件 | 函数 | 描述 |
+|---|---|---|
+| `tool_trade.py` | `buy(symbol, amount)` | 买入指定数量的股票。成功则返回更新后的仓位，失败则返回错误信息。 |
+| | `sell(symbol, amount)` | 卖出指定数量的股票。成功则返回更新后的仓位，失败则返回错误信息。 |
+| `tool_get_price_local.py` | `get_price_local(symbol, date)` | 从本地数据文件 (`merged.jsonl`) 中获取指定股票在特定日期的开盘价、最高价、最低价、收盘价和交易量 (OHLCV)。 |
+| `tool_jina_search.py` | `get_information(query)` | 使用 Jina AI 搜索引擎，根据查询抓取相关的网页内容，包括标题、描述和正文摘要，同时会自动过滤掉未来日期的信息。 |
+| `tool_math.py` | `add(a, b)` | 计算两个数的和。 |
+| | `multiply(a, b)` | 计算两个数的积。 |
 
 ## 🚀 快速开始
 
 ### 📋 前置要求
 
 - **Python 3.10+** 
-- **API密钥**: OpenAI、Alpha Vantage、Jina AI
-
+- **API密钥**: OpenAI, Alpha Vantage, Jina AI
 
 ### ⚡ 一键安装
 
@@ -247,99 +247,68 @@ ALPHAADVANTAGE_API_KEY=your_alpha_vantage_key
 JINA_API_KEY=your_jina_api_key
 
 # ⚙️ 系统配置
-RUNTIME_ENV_PATH=./runtime_env.json #推荐使用绝对路径
+RUNTIME_ENV_PATH=./runtime_env.json # 推荐使用绝对路径
 
 # 🌐 服务端口配置
 MATH_HTTP_PORT=8000
 SEARCH_HTTP_PORT=8001
 TRADE_HTTP_PORT=8002
 GETPRICE_HTTP_PORT=8003
+
 # 🧠 AI代理配置
 AGENT_MAX_STEP=30             # 最大推理步数
 ```
 
-### 📦 依赖包
-
-```bash
-# 安装生产环境依赖
-pip install -r requirements.txt
-
-# 或手动安装核心依赖
-pip install langchain langchain-openai langchain-mcp-adapters fastmcp python-dotenv requests numpy pandas
-```
-
 ## 🎮 运行指南
 
-### 📊 步骤1: 数据准备 (`./fresh_data.sh`)
+### 📊 步骤1: 数据准备
 
+运行以下脚本从 Alpha Vantage API 获取最新的纳斯达克100股票数据，并将其合并为统一的格式。
 
 ```bash
-# 📈 获取纳斯达克100股票数据
+# 切换到 data 目录
 cd data
+
+# 获取每日股价数据
 python get_daily_price.py
 
-# 🔄 合并数据为统一格式
+# 合并数据为统一的 JSONL 格式
 python merge_jsonl.py
 ```
 
 ### 🛠️ 步骤2: 启动MCP服务
 
+MCP (Model Context Protocol) 服务是让AI代理能够使用外部工具（如交易、价格查询）的桥梁。在运行主程序之前，必须先启动这些服务。
+
 ```bash
+# 切换到 agent_tools 目录
 cd ./agent_tools
+
+# 启动所有MCP服务
 python start_mcp_services.py
 ```
 
 ### 🚀 步骤3: 启动AI竞技场
 
+现在，您可以运行主程序，让AI代理们开始交易了。
+
 ```bash
-# 🎯 运行主程序 - 让AI们开始交易！
+# 运行主程序 (使用默认配置)
 python main.py
 
-# 🎯 或使用自定义配置
+# 或者使用自定义配置文件
 python main.py configs/my_config.json
-```
-
-### ⏰ 时间设置示例
-
-#### 📅 创建自定义时间配置
-```json
-{
-  "agent_type": "BaseAgent",
-  "date_range": {
-    "init_date": "2024-01-01",  // 回测开始日期
-    "end_date": "2024-03-31"     // 回测结束日期
-  },
-  "models": [
-    {
-      "name": "claude-3.7-sonnet",
-      "basemodel": "anthropic/claude-3.7-sonnet",
-      "signature": "claude-3.7-sonnet",
-      "enabled": true
-    }
-  ]
-}
 ```
 
 ### 📈 启动Web界面
 
+项目提供了一个简单的前端页面来可视化交易结果。
+
 ```bash
 cd docs
 python3 -m http.server 8000
-# 访问 http://localhost:8000
+# 在浏览器中访问 http://localhost:8000
 ```
-
-
-## 📈 性能分析
-
-### 🏆 竞技规则
-
-| 规则项 | 设置 | 说明 |
-|--------|------|------|
-| **💰 初始资金** | $10,000 | 每个AI模型起始资金 |
-| **📈 交易标的** | 纳斯达克100 | 100只顶级科技股 |
-| **⏰ 交易时间** | 工作日 | 周一至周五 |
-| **💲 价格基准** | 开盘价 | 使用当日开盘价交易 |
-| **📝 记录方式** | JSONL格式 | 完整交易历史记录 |
 
 ## ⚙️ 配置指南
 
@@ -375,210 +344,35 @@ python3 -m http.server 8000
 ### 🔧 配置参数说明
 
 | 参数 | 说明 | 默认值 |
-|------|------|--------|
-| `agent_type` | AI代理类型 | "BaseAgent" |
-| `max_steps` | 最大推理步数 | 30 |
-| `max_retries` | 最大重试次数 | 3 |
-| `base_delay` | 操作延迟(秒) | 1.0 |
-| `initial_cash` | 初始资金 | $10,000 |
+|---|---|---|
+| `agent_type` | AI代理的类型。必须与 `main.py` 中 `AGENT_REGISTRY` 的键匹配。 | "BaseAgent" |
+| `date_range` | `init_date` 和 `end_date` 定义了交易模拟的时间范围。 | |
+| `models` | 一个包含多个模型配置的列表。只有 `enabled` 为 `true` 的模型才会被执行。 | |
+| `agent_config.max_steps` | 在单个交易日中，AI代理可以执行的最大推理步数。 | 30 |
+| `agent_config.max_retries` | 当AI代理调用或工具执行失败时，最大重试次数。 | 3 |
+| `agent_config.base_delay` | 每次重试之间的基础延迟时间（秒）。 | 1.0 |
+| `agent_config.initial_cash` | 每个AI代理的初始现金。 | 10000.0 |
+| `log_config.log_path` | 存放代理日志和仓位数据的根目录。 | "./data/agent_data" |
 
-### 📊 数据格式
-
-#### 💰 持仓记录 (position.jsonl)
-```json
-{
-  "date": "2025-01-20",
-  "id": 1,
-  "this_action": {
-    "action": "buy",
-    "symbol": "AAPL", 
-    "amount": 10
-  },
-  "positions": {
-    "AAPL": 10,
-    "MSFT": 0,
-    "CASH": 9737.6
-  }
-}
-```
-
-#### 📈 价格数据 (merged.jsonl)
-```json
-{
-  "Meta Data": {
-    "2. Symbol": "AAPL",
-    "3. Last Refreshed": "2025-01-20"
-  },
-  "Time Series (Daily)": {
-    "2025-01-20": {
-      "1. buy price": "255.8850",
-      "2. high": "264.3750", 
-      "3. low": "255.6300",
-      "4. sell price": "262.2400",
-      "5. volume": "90483029"
-    }
-  }
-}
-```
-
-### 📁 文件结构
-
-```
-data/agent_data/
-├── claude-3.7-sonnet/
-│   ├── position/
-│   │   └── position.jsonl      # 📝 持仓记录
-│   └── log/
-│       └── 2025-01-20/
-│           └── log.jsonl       # 📊 交易日志
-├── gpt-4o/
-│   └── ...
-└── qwen3-max/
-    └── ...
-```
-
-## 🔌 第三方策略集成
-
-AI-Trader Bench采用模块化设计，支持轻松集成第三方策略和自定义AI代理。
-
-### 🛠️ 集成方式
-
-#### 1. 自定义AI代理
-```python
-# 创建新的AI代理类
-class CustomAgent(BaseAgent):
-    def __init__(self, model_name, **kwargs):
-        super().__init__(model_name, **kwargs)
-        # 添加自定义逻辑
-```
-
-#### 2. 注册新代理
-```python
-# 在 main.py 中注册
-AGENT_REGISTRY = {
-    "BaseAgent": {
-        "module": "agent.base_agent.base_agent",
-        "class": "BaseAgent"
-    },
-    "CustomAgent": {  # 新增
-        "module": "agent.custom.custom_agent",
-        "class": "CustomAgent"
-    },
-}
-```
-
-#### 3. 配置文件设置
-```json
-{
-  "agent_type": "CustomAgent",
-  "models": [
-    {
-      "name": "your-custom-model",
-      "basemodel": "your/model/path",
-      "signature": "custom-signature",
-      "enabled": true
-    }
-  ]
-}
-```
-
-### 🔧 扩展工具链
-
-#### 添加自定义工具
-```python
-# 创建新的MCP工具
-@mcp.tools()
-class CustomTool:
-    def __init__(self):
-        self.name = "custom_tool"
-    
-    def execute(self, params):
-        # 实现自定义工具逻辑
-        return result
-```
-
-## 🚀 路线图
-
-### 🌟 未来计划
-- [ ] **🇨🇳 A股支持** - 扩展至中国股市
-- [ ] **📊 收盘后统计** - 自动收益分析
-- [ ] **🔌 策略市场** - 添加第三方策略分享平台
-- [ ] **🎨 炫酷前端界面** - 现代化Web仪表板
-- [ ] **₿ 加密货币** - 支持数字货币交易
-- [ ] **📈 更多策略** - 技术分析、量化策略
-- [ ] **⏰ 高级回放** - 支持分钟级时间精度和实时回放
-- [ ] **🔍 智能过滤** - 更精确的未来信息检测和过滤
 
 ## 🤝 贡献指南
 
 我们欢迎各种形式的贡献！特别是AI交易策略和代理实现。
 
-### 🧠 AI策略贡献
-- **🎯 交易策略**: 贡献你的AI交易策略实现
-- **🤖 自定义代理**: 实现新的AI代理类型
-- **📊 分析工具**: 添加新的市场分析工具
-- **🔍 数据源**: 集成新的数据源和API
-
-### 🐛 问题报告
-- 使用GitHub Issues报告bug
-- 提供详细的复现步骤
-- 包含系统环境信息
-
-### 💡 功能建议
-- 在Issues中提出新功能想法
-- 详细描述使用场景
-- 讨论实现方案
-
 ### 🔧 代码贡献
-1. Fork项目
-2. 创建功能分支
+1. Fork本项目
+2. 创建一个新的功能分支
 3. 实现你的策略或功能
-4. 添加测试用例
-5. 创建Pull Request
+4. 添加必要的测试用例
+5. 创建一个Pull Request
 
 ### 📚 文档改进
-- 完善README文档
-- 添加代码注释
-- 编写使用教程
-- 贡献策略说明文档
+- 完善 `README_CN.md` 文档
+- 为代码添加更详细的注释
+- 编写使用教程或策略说明
 
-### 🏆 策略分享
-- **📈 技术分析策略**: 基于技术指标的AI策略
-- **📊 量化策略**: 多因子模型和量化分析
-- **🔍 基本面策略**: 基于财务数据的分析策略
-- **🌐 宏观策略**: 基于宏观经济数据的策略
-
-## 📞 支持与社区
-
-- **💬 讨论**: [GitHub Discussions](https://github.com/HKUDS/AI-Trader/discussions)
-- **🐛 问题**: [GitHub Issues](https://github.com/HKUDS/AI-Trader/issues)
 
 ## 📄 许可证
 
 本项目采用 [MIT License](LICENSE) 开源协议。
-
-## 🙏 致谢
-
-感谢以下开源项目和服务：
-- [LangChain](https://github.com/langchain-ai/langchain) - AI应用开发框架
-- [MCP](https://github.com/modelcontextprotocol) - Model Context Protocol
-- [Alpha Vantage](https://www.alphavantage.co/) - 金融数据API
-- [Jina AI](https://jina.ai/) - 信息搜索服务
-
-## 免责声明
-
-AI-Trader项目所提供的资料仅供研究之用，并不构成任何投资建议。投资者在作出任何投资决策之前，应寻求独立专业意见。任何过往表现未必可作为未来业绩的指标。阁下应注意，投资价值可能上升亦可能下跌，且并无任何保证。AI-Trader项目的所有内容仅作研究之用，并不构成对所提及之证券／行业的任何投资推荐。投资涉及风险。如有需要，请寻求专业咨询。
-
----
-
-<div align="center">
-
-**🌟 如果这个项目对你有帮助，请给我们一个Star！**
-
-[![GitHub stars](https://img.shields.io/github/stars/HKUDS/AI-Trader?style=social)](https://github.com/HKUDS/AI-Trader)
-[![GitHub forks](https://img.shields.io/github/forks/HKUDS/AI-Trader?style=social)](https://github.com/HKUDS/AI-Trader)
-
-**🤖 让AI在金融市场中完全自主决策、一展身手！**  
-**🛠️ 纯工具驱动，零人工干预，真正的AI交易竞技场！** 🚀
-
 </div>

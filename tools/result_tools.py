@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 import sys
 
-# Add project root directory to Python path to allow running this file from subdirectories
+# 将项目根目录添加到Python路径，以便从子目录运行此文件
 project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if project_root not in sys.path:
     sys.path.insert(0, project_root)
@@ -25,15 +25,15 @@ from tools.general_tools import get_config_value
 
 def calculate_portfolio_value(positions: Dict[str, float], prices: Dict[str, Optional[float]], cash: float = 0.0) -> float:
     """
-    Calculate total portfolio value
-    
+    计算投资组合的总价值。
+
     Args:
-        positions: Position dictionary in format {symbol: shares}
-        prices: Price dictionary in format {symbol_price: price}
-        cash: Cash balance
-    
+        positions (Dict[str, float]): 持仓字典，格式为 {股票代码: 股数}。
+        prices (Dict[str, Optional[float]]): 价格字典，格式为 {股票代码_price: 价格}。
+        cash (float): 现金余额。
+
     Returns:
-        Total portfolio value
+        float: 投资组合的总价值。
     """
     total_value = cash
     
@@ -50,13 +50,13 @@ def calculate_portfolio_value(positions: Dict[str, float], prices: Dict[str, Opt
 
 def get_available_date_range(modelname: str) -> Tuple[str, str]:
     """
-    Get available data date range
-    
+    获取可用数据的日期范围。
+
     Args:
-        modelname: Model name
-    
+        modelname (str): 模型名称。
+
     Returns:
-        Tuple of (earliest date, latest date) in YYYY-MM-DD format
+        Tuple[str, str]: (最早日期, 最晚日期) 的元组，格式为 "YYYY-MM-DD"。
     """
     base_dir = Path(__file__).resolve().parents[1]
     position_file = base_dir / "data" / "agent_data" / modelname / "position" / "position.jsonl"
@@ -87,15 +87,15 @@ def get_available_date_range(modelname: str) -> Tuple[str, str]:
 
 def get_daily_portfolio_values(modelname: str, start_date: Optional[str] = None, end_date: Optional[str] = None) -> Dict[str, float]:
     """
-    Get daily portfolio values
-    
+    获取每日的投资组合价值。
+
     Args:
-        modelname: Model name
-        start_date: Start date in YYYY-MM-DD format, uses earliest date if None
-        end_date: End date in YYYY-MM-DD format, uses latest date if None
-    
+        modelname (str): 模型名称。
+        start_date (Optional[str]): 开始日期，格式为 "YYYY-MM-DD"。如果为 None，则使用最早的可用日期。
+        end_date (Optional[str]): 结束日期，格式为 "YYYY-MM-DD"。如果为 None，则使用最晚的可用日期。
+
     Returns:
-        Dictionary of daily portfolio values in format {date: portfolio_value}
+        Dict[str, float]: 每日投资组合价值的字典，格式为 {日期: 价值}。
     """
     base_dir = Path(__file__).resolve().parents[1]
     position_file = base_dir / "data" / "agent_data" / modelname / "position" / "position.jsonl"
@@ -188,13 +188,13 @@ def get_daily_portfolio_values(modelname: str, start_date: Optional[str] = None,
 
 def calculate_daily_returns(portfolio_values: Dict[str, float]) -> List[float]:
     """
-    Calculate daily returns
-    
+    计算每日收益率。
+
     Args:
-        portfolio_values: Daily portfolio value dictionary
-    
+        portfolio_values (Dict[str, float]): 每日投资组合价值字典。
+
     Returns:
-        List of daily returns
+        List[float]: 每日收益率列表。
     """
     if len(portfolio_values) < 2:
         return []
@@ -219,14 +219,14 @@ def calculate_daily_returns(portfolio_values: Dict[str, float]) -> List[float]:
 
 def calculate_sharpe_ratio(returns: List[float], risk_free_rate: float = 0.02) -> float:
     """
-    Calculate Sharpe ratio
-    
+    计算夏普比率。
+
     Args:
-        returns: List of returns
-        risk_free_rate: Risk-free rate (annualized)
-    
+        returns (List[float]): 收益率列表。
+        risk_free_rate (float): 无风险利率（年化）。
+
     Returns:
-        Sharpe ratio
+        float: 夏普比率。
     """
     if not returns or len(returns) < 2:
         return 0.0
@@ -252,13 +252,13 @@ def calculate_sharpe_ratio(returns: List[float], risk_free_rate: float = 0.02) -
 
 def calculate_max_drawdown(portfolio_values: Dict[str, float]) -> Tuple[float, str, str]:
     """
-    Calculate maximum drawdown
-    
+    计算最大回撤。
+
     Args:
-        portfolio_values: Daily portfolio value dictionary
-    
+        portfolio_values (Dict[str, float]): 每日投资组合价值字典。
+
     Returns:
-        Tuple of (maximum drawdown percentage, drawdown start date, drawdown end date)
+        Tuple[float, str, str]: (最大回撤百分比, 回撤开始日期, 回撤结束日期)。
     """
     if not portfolio_values:
         return 0.0, "", ""
@@ -289,13 +289,13 @@ def calculate_max_drawdown(portfolio_values: Dict[str, float]) -> Tuple[float, s
 
 def calculate_cumulative_return(portfolio_values: Dict[str, float]) -> float:
     """
-    Calculate cumulative return
-    
+    计算累计回报率。
+
     Args:
-        portfolio_values: Daily portfolio value dictionary
-    
+        portfolio_values (Dict[str, float]): 每日投资组合价值字典。
+
     Returns:
-        Cumulative return
+        float: 累计回报率。
     """
     if not portfolio_values:
         return 0.0
@@ -314,13 +314,13 @@ def calculate_cumulative_return(portfolio_values: Dict[str, float]) -> float:
 
 def calculate_annualized_return(portfolio_values: Dict[str, float]) -> float:
     """
-    Calculate annualized return
-    
+    计算年化回报率。
+
     Args:
-        portfolio_values: Daily portfolio value dictionary
-    
+        portfolio_values (Dict[str, float]): 每日投资组合价值字典。
+
     Returns:
-        Annualized return
+        float: 年化回报率。
     """
     if not portfolio_values:
         return 0.0
@@ -350,13 +350,13 @@ def calculate_annualized_return(portfolio_values: Dict[str, float]) -> float:
 
 def calculate_volatility(returns: List[float]) -> float:
     """
-    Calculate annualized volatility
-    
+    计算年化波动率。
+
     Args:
-        returns: List of returns
-    
+        returns (List[float]): 收益率列表。
+
     Returns:
-        Annualized volatility
+        float: 年化波动率。
     """
     if not returns or len(returns) < 2:
         return 0.0
@@ -372,13 +372,13 @@ def calculate_volatility(returns: List[float]) -> float:
 
 def calculate_win_rate(returns: List[float]) -> float:
     """
-    Calculate win rate
-    
+    计算胜率。
+
     Args:
-        returns: List of returns
-    
+        returns (List[float]): 收益率列表。
+
     Returns:
-        Win rate (percentage of positive return days)
+        float: 胜率 (正收益天数的百分比)。
     """
     if not returns:
         return 0.0
@@ -391,13 +391,13 @@ def calculate_win_rate(returns: List[float]) -> float:
 
 def calculate_profit_loss_ratio(returns: List[float]) -> float:
     """
-    Calculate profit/loss ratio
-    
+    计算盈亏比。
+
     Args:
-        returns: List of returns
-    
+        returns (List[float]): 收益率列表。
+
     Returns:
-        Profit/loss ratio (average profit / average loss)
+        float: 盈亏比 (平均盈利 / 平均亏损)。
     """
     if not returns:
         return 0.0
@@ -419,22 +419,22 @@ def calculate_profit_loss_ratio(returns: List[float]) -> float:
 
 def calculate_all_metrics(modelname: str, start_date: Optional[str] = None, end_date: Optional[str] = None) -> Dict[str, any]:
     """
-    Calculate all performance metrics
-    
+    计算所有性能指标。
+
     Args:
-        modelname: Model name
-        start_date: Start date in YYYY-MM-DD format, uses earliest date if None
-        end_date: End date in YYYY-MM-DD format, uses latest date if None
-    
+        modelname (str): 模型名称。
+        start_date (Optional[str]): 开始日期。
+        end_date (Optional[str]): 结束日期。
+
     Returns:
-        Dictionary containing all metrics
+        Dict[str, any]: 包含所有指标的字典。
     """
     # Get available date range if not specified
     if start_date is None or end_date is None:
         earliest_date, latest_date = get_available_date_range(modelname)
         if not earliest_date or not latest_date:
             return {
-                "error": "Unable to get available data date range",
+                "error": "无法获取可用数据日期范围",
                 "portfolio_values": {},
                 "daily_returns": [],
                 "sharpe_ratio": 0.0,
@@ -461,7 +461,7 @@ def calculate_all_metrics(modelname: str, start_date: Optional[str] = None, end_
     
     if not portfolio_values:
         return {
-            "error": "Unable to get portfolio data",
+            "error": "无法获取投资组合数据",
             "portfolio_values": {},
             "daily_returns": [],
             "sharpe_ratio": 0.0,
@@ -515,39 +515,39 @@ def calculate_all_metrics(modelname: str, start_date: Optional[str] = None, end_
 
 def print_performance_report(metrics: Dict[str, any]) -> None:
     """
-    Print performance report
-    
+    打印性能报告。
+
     Args:
-        metrics: Dictionary containing all metrics
+        metrics (Dict[str, any]): 包含所有指标的字典。
     """
     print("=" * 60)
-    print("Portfolio Performance Report")
+    print("投资组合性能报告")
     print("=" * 60)
     
     if "error" in metrics:
-        print(f"Error: {metrics['error']}")
+        print(f"错误: {metrics['error']}")
         return
     
-    print(f"Analysis Period: {metrics['start_date']} to {metrics['end_date']}")
-    print(f"Trading Days: {metrics['total_trading_days']}")
+    print(f"分析期间: {metrics['start_date']} 到 {metrics['end_date']}")
+    print(f"交易天数: {metrics['total_trading_days']}")
     print()
     
-    print("Return Metrics:")
-    print(f"  Cumulative Return: {metrics['cumulative_return']:.2%}")
-    print(f"  Annualized Return: {metrics['annualized_return']:.2%}")
-    print(f"  Annualized Volatility: {metrics['volatility']:.2%}")
+    print("回报指标:")
+    print(f"  累计回报率: {metrics['cumulative_return']:.2%}")
+    print(f"  年化回报率: {metrics['annualized_return']:.2%}")
+    print(f"  年化波动率: {metrics['volatility']:.2%}")
     print()
     
-    print("Risk Metrics:")
-    print(f"  Sharpe Ratio: {metrics['sharpe_ratio']:.4f}")
-    print(f"  Maximum Drawdown: {metrics['max_drawdown']:.2%}")
+    print("风险指标:")
+    print(f"  夏普比率: {metrics['sharpe_ratio']:.4f}")
+    print(f"  最大回撤: {metrics['max_drawdown']:.2%}")
     if metrics['max_drawdown_start'] and metrics['max_drawdown_end']:
-        print(f"  Drawdown Period: {metrics['max_drawdown_start']} to {metrics['max_drawdown_end']}")
+        print(f"  回撤期间: {metrics['max_drawdown_start']} 到 {metrics['max_drawdown_end']}")
     print()
     
-    print("Trading Statistics:")
-    print(f"  Win Rate: {metrics['win_rate']:.2%}")
-    print(f"  Profit/Loss Ratio: {metrics['profit_loss_ratio']:.4f}")
+    print("交易统计:")
+    print(f"  胜率: {metrics['win_rate']:.2%}")
+    print(f"  盈亏比: {metrics['profit_loss_ratio']:.4f}")
     print()
     
     # Show portfolio value changes
@@ -557,21 +557,21 @@ def print_performance_report(metrics: Dict[str, any]) -> None:
         initial_value = portfolio_values[sorted_dates[0]]
         final_value = portfolio_values[sorted_dates[-1]]
         
-        print("Portfolio Value:")
-        print(f"  Initial Value: ${initial_value:,.2f}")
-        print(f"  Final Value: ${final_value:,.2f}")
-        print(f"  Value Change: ${final_value - initial_value:,.2f}")
+        print("投资组合价值:")
+        print(f"  初始价值: ${initial_value:,.2f}")
+        print(f"  最终价值: ${final_value:,.2f}")
+        print(f"  价值变化: ${final_value - initial_value:,.2f}")
 
 
 def get_next_id(filepath: Path) -> int:
     """
-    Get next ID number
-    
+    获取下一个ID号。
+
     Args:
-        filepath: JSONL file path
-    
+        filepath (Path): JSONL文件路径。
+
     Returns:
-        Next ID number
+        int: 下一个ID号。
     """
     if not filepath.exists():
         return 0
@@ -594,15 +594,15 @@ def get_next_id(filepath: Path) -> int:
 
 def save_metrics_to_jsonl(metrics: Dict[str, any], modelname: str, output_dir: Optional[str] = None) -> str:
     """
-    Incrementally save metrics to JSONL format
-    
+    将指标增量保存为JSONL格式。
+
     Args:
-        metrics: Dictionary containing all metrics
-        modelname: Model name
-        output_dir: Output directory, defaults to data/agent_data/{modelname}/metrics/
-    
+        metrics (Dict[str, any]): 包含所有指标的字典。
+        modelname (str): 模型名称。
+        output_dir (Optional[str]): 输出目录，默认为 data/agent_data/{modelname}/metrics/。
+
     Returns:
-        Path to saved file
+        str: 保存文件的路径。
     """
     base_dir = Path(__file__).resolve().parents[1]
     
@@ -669,14 +669,14 @@ def save_metrics_to_jsonl(metrics: Dict[str, any], modelname: str, output_dir: O
 
 def get_latest_metrics(modelname: str, output_dir: Optional[str] = None) -> Optional[Dict[str, any]]:
     """
-    Get latest performance metrics record
-    
+    获取最新的性能指标记录。
+
     Args:
-        modelname: Model name
-        output_dir: Output directory, defaults to data/agent_data/{modelname}/metrics/
-    
+        modelname (str): 模型名称。
+        output_dir (Optional[str]): 输出目录。
+
     Returns:
-        Latest metrics record, or None if no records exist
+        Optional[Dict[str, any]]: 最新的指标记录，如果没有记录则为 None。
     """
     base_dir = Path(__file__).resolve().parents[1]
     
@@ -711,15 +711,15 @@ def get_latest_metrics(modelname: str, output_dir: Optional[str] = None) -> Opti
 
 def get_metrics_history(modelname: str, output_dir: Optional[str] = None, limit: Optional[int] = None) -> List[Dict[str, any]]:
     """
-    Get performance metrics history
-    
+    获取性能指标历史记录。
+
     Args:
-        modelname: Model name
-        output_dir: Output directory, defaults to data/agent_data/{modelname}/metrics/
-        limit: Limit number of records returned, None returns all records
-    
+        modelname (str): 模型名称。
+        output_dir (Optional[str]): 输出目录。
+        limit (Optional[int]): 限制返回的记录数，None 返回所有记录。
+
     Returns:
-        List of metrics records, sorted by ID
+        List[Dict[str, any]]: 指标记录列表，按ID排序。
     """
     base_dir = Path(__file__).resolve().parents[1]
     
@@ -757,43 +757,43 @@ def get_metrics_history(modelname: str, output_dir: Optional[str] = None, limit:
 
 def print_metrics_summary(modelname: str, output_dir: Optional[str] = None) -> None:
     """
-    Print performance metrics summary
-    
+    打印性能指标摘要。
+
     Args:
-        modelname: Model name
-        output_dir: Output directory
+        modelname (str): 模型名称。
+        output_dir (Optional[str]): 输出目录。
     """
-    print(f"📊 Model '{modelname}' Performance Metrics Summary")
+    print(f"📊 模型 '{modelname}' 性能指标摘要")
     print("=" * 60)
     
     # Get history records
     history = get_metrics_history(modelname, output_dir)
     
     if not history:
-        print("❌ No history records found")
+        print("❌ 未找到历史记录")
         return
     
-    print(f"📈 Total Records: {len(history)}")
+    print(f"📈 总记录数: {len(history)}")
     
     # Show latest record
     latest = history[-1]
-    print(f"🕒 Latest Record (ID: {latest['id']}):")
-    print(f"   Analysis Period: {latest['analysis_period']['start_date']} to {latest['analysis_period']['end_date']}")
-    print(f"   Trading Days: {latest['analysis_period']['total_trading_days']}")
+    print(f"🕒 最新记录 (ID: {latest['id']}):")
+    print(f"   分析期间: {latest['analysis_period']['start_date']} 到 {latest['analysis_period']['end_date']}")
+    print(f"   交易天数: {latest['analysis_period']['total_trading_days']}")
     
     metrics = latest['performance_metrics']
-    print(f"   Sharpe Ratio: {metrics['sharpe_ratio']}")
-    print(f"   Maximum Drawdown: {metrics['max_drawdown']:.2%}")
-    print(f"   Cumulative Return: {metrics['cumulative_return']:.2%}")
-    print(f"   Annualized Return: {metrics['annualized_return']:.2%}")
+    print(f"   夏普比率: {metrics['sharpe_ratio']}")
+    print(f"   最大回撤: {metrics['max_drawdown']:.2%}")
+    print(f"   累计回报率: {metrics['cumulative_return']:.2%}")
+    print(f"   年化回报率: {metrics['annualized_return']:.2%}")
     
     # Show trends (if multiple records exist)
     if len(history) > 1:
-        print(f"\n📊 Trend Analysis (Last {min(5, len(history))} Records):")
+        print(f"\n📊 趋势分析 (最近 {min(5, len(history))} 条记录):")
         
         recent_records = history[-5:] if len(history) >= 5 else history
         
-        print("ID  | Time                | Cum Ret   | Ann Ret   | Sharpe")
+        print("ID  | 时间                | 累计回报 | 年化回报 | 夏普")
         print("-" * 70)
         
         for record in recent_records:
@@ -803,19 +803,19 @@ def print_metrics_summary(modelname: str, output_dir: Optional[str] = None) -> N
 
 def calculate_and_save_metrics(modelname: str, start_date: Optional[str] = None, end_date: Optional[str] = None, output_dir: Optional[str] = None, print_report: bool = True) -> Dict[str, any]:
     """
-    Entry function to calculate all metrics and save in JSONL format
-    
+    计算所有指标并以JSONL格式保存的入口函数。
+
     Args:
-        modelname: Model name (SIGNATURE)
-        start_date: Start date in YYYY-MM-DD format, uses earliest date if None
-        end_date: End date in YYYY-MM-DD format, uses latest date if None
-        output_dir: Output directory, defaults to data/agent_data/{modelname}/metrics/
-        print_report: Whether to print report
-    
+        modelname (str): 模型名称 (SIGNATURE)。
+        start_date (Optional[str]): 开始日期。
+        end_date (Optional[str]): 结束日期。
+        output_dir (Optional[str]): 输出目录。
+        print_report (bool): 是否打印报告。
+
     Returns:
-        Dictionary containing all metrics and saved file path
+        Dict[str, any]: 包含所有指标和已保存文件路径的字典。
     """
-    print(f"Analyzing model: {modelname}")
+    print(f"正在分析模型: {modelname}")
     
     # Show date range to be used if not specified
     if start_date is None or end_date is None:
@@ -823,33 +823,33 @@ def calculate_and_save_metrics(modelname: str, start_date: Optional[str] = None,
         if earliest_date and latest_date:
             if start_date is None:
                 start_date = earliest_date
-                print(f"Using default start date: {start_date}")
+                print(f"使用默认开始日期: {start_date}")
             if end_date is None:
                 end_date = latest_date
-                print(f"Using default end date: {end_date}")
+                print(f"使用默认结束日期: {end_date}")
         else:
-            print("❌ Unable to get available data date range")
+            print("❌ 无法获取可用数据日期范围")
     
     # Calculate all metrics
     metrics = calculate_all_metrics(modelname, start_date, end_date)
     
     if "error" in metrics:
-        print(f"Error: {metrics['error']}")
+        print(f"错误: {metrics['error']}")
         return metrics
     
     # Save in JSONL format
     try:
         saved_file = save_metrics_to_jsonl(metrics, modelname, output_dir)
-        print(f"Metrics saved to: {saved_file}")
+        print(f"指标已保存至: {saved_file}")
         metrics["saved_file"] = saved_file
         
         # Get ID of just saved record
         latest_record = get_latest_metrics(modelname, output_dir)
         if latest_record:
             metrics["record_id"] = latest_record["id"]
-            print(f"Record ID: {latest_record['id']}")
+            print(f"记录 ID: {latest_record['id']}")
     except Exception as e:
-        print(f"Error saving file: {e}")
+        print(f"保存文件时出错: {e}")
         metrics["save_error"] = str(e)
     
     # Print report

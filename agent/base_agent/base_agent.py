@@ -1,6 +1,6 @@
 """
-BaseAgent class - Base class for trading agents
-Encapsulates core functionality including MCP tool management, AI agent creation, and trading execution
+BaseAgent 类 - 交易代理的基类
+封装了核心功能，包括 MCP 工具管理、AI 代理创建和交易执行。
 """
 
 import os
@@ -15,7 +15,7 @@ from langchain_openai import ChatOpenAI
 from langchain.agents import create_agent
 from dotenv import load_dotenv
 
-# Import project tools
+# 导入项目工具
 import sys
 project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, project_root)
@@ -24,23 +24,23 @@ from tools.general_tools import extract_conversation, extract_tool_messages, get
 from tools.price_tools import add_no_trade_record
 from prompts.agent_prompt import get_agent_system_prompt, STOP_SIGNAL
 
-# Load environment variables
+# 加载环境变量
 load_dotenv()
 
 
 class BaseAgent:
     """
-    Base class for trading agents
-    
-    Main functionalities:
-    1. MCP tool management and connection
-    2. AI agent creation and configuration
-    3. Trading execution and decision loops
-    4. Logging and management
-    5. Position and configuration management
+    交易代理的基类。
+
+    主要功能:
+    1. MCP 工具管理和连接。
+    2. AI 代理的创建和配置。
+    3. 交易执行和决策循环。
+    4. 日志记录和管理。
+    5. 仓位和配置管理。
     """
     
-    # Default NASDAQ 100 stock symbols
+    # 默认的纳斯达克 100 股票代码
     DEFAULT_STOCK_SYMBOLS = [
         "NVDA", "MSFT", "AAPL", "GOOG", "GOOGL", "AMZN", "META", "AVGO", "TSLA",
         "NFLX", "PLTR", "COST", "ASML", "AMD", "CSCO", "AZN", "TMUS", "MU", "LIN",
@@ -71,21 +71,21 @@ class BaseAgent:
         init_date: str = "2025-10-13"
     ):
         """
-        Initialize BaseAgent
-        
+        初始化 BaseAgent。
+
         Args:
-            signature: Agent signature/name
-            basemodel: Base model name
-            stock_symbols: List of stock symbols, defaults to NASDAQ 100
-            mcp_config: MCP tool configuration, including port and URL information
-            log_path: Log path, defaults to ./data/agent_data
-            max_steps: Maximum reasoning steps
-            max_retries: Maximum retry attempts
-            base_delay: Base delay time for retries
-            openai_base_url: OpenAI API base URL
-            openai_api_key: OpenAI API key
-            initial_cash: Initial cash amount
-            init_date: Initialization date
+            signature (str): 代理的签名/名称。
+            basemodel (str): 基础模型的名称。
+            stock_symbols (Optional[List[str]]): 股票代码列表，默认为纳斯达克 100 指数成分股。
+            mcp_config (Optional[Dict[str, Dict[str, Any]]]): MCP 工具配置，包括端口和 URL 信息。
+            log_path (Optional[str]): 日志路径，默认为 ./data/agent_data。
+            max_steps (int): 最大推理步数。
+            max_retries (int): 最大重试次数。
+            base_delay (float): 重试的基础延迟时间。
+            openai_base_url (Optional[str]): OpenAI API 的基础 URL。
+            openai_api_key (Optional[str]): OpenAI API 密钥。
+            initial_cash (float): 初始现金金额。
+            init_date (str): 初始化日期。
         """
         self.signature = signature
         self.basemodel = basemodel
@@ -96,13 +96,13 @@ class BaseAgent:
         self.initial_cash = initial_cash
         self.init_date = init_date
         
-        # Set MCP configuration
+        # 设置 MCP 配置
         self.mcp_config = mcp_config or self._get_default_mcp_config()
         
-        # Set log path
+        # 设置日志路径
         self.base_log_path = log_path or "./data/agent_data"
         
-        # Set OpenAI configuration
+        # 设置 OpenAI 配置
         if openai_base_url==None:
             self.openai_base_url = os.getenv("OPENAI_API_BASE")
         else:
@@ -112,18 +112,23 @@ class BaseAgent:
         else:
             self.openai_api_key = openai_api_key
         
-        # Initialize components
+        # 初始化组件
         self.client: Optional[MultiServerMCPClient] = None
         self.tools: Optional[List] = None
         self.model: Optional[ChatOpenAI] = None
         self.agent: Optional[Any] = None
         
-        # Data paths
+        # 数据路径
         self.data_path = os.path.join(self.base_log_path, self.signature)
         self.position_file = os.path.join(self.data_path, "position", "position.jsonl")
         
     def _get_default_mcp_config(self) -> Dict[str, Dict[str, Any]]:
-        """Get default MCP configuration"""
+        """
+        获取默认的 MCP 配置。
+
+        Returns:
+            Dict[str, Dict[str, Any]]: 包含各工具服务 URL 的配置字典。
+        """
         return {
             "math": {
                 "transport": "streamable_http",
@@ -144,20 +149,26 @@ class BaseAgent:
         }
     
     async def initialize(self) -> None:
-        """Initialize MCP client and AI model"""
+        """
+        异步初始化 MCP 客户端和 AI 模型。
+
+        Raises:
+            ValueError: 如果 OpenAI API 密钥未设置。
+            RuntimeError: 如果 MCP 客户端或 AI 模型初始化失败。
+        """
         print(f"🚀 Initializing agent: {self.signature}")
         
-        # Validate OpenAI configuration
+        # 验证 OpenAI 配置
         if not self.openai_api_key:
             raise ValueError("❌ OpenAI API key not set. Please configure OPENAI_API_KEY in environment or config file.")
         if not self.openai_base_url:
             print("⚠️  OpenAI base URL not set, using default")
         
         try:
-            # Create MCP client
+            # 创建 MCP 客户端
             self.client = MultiServerMCPClient(self.mcp_config)
             
-            # Get tools
+            # 获取工具
             self.tools = await self.client.get_tools()
             if not self.tools:
                 print("⚠️  Warning: No MCP tools loaded. MCP services may not be running.")
@@ -172,7 +183,7 @@ class BaseAgent:
             )
         
         try:
-            # Create AI model
+            # 创建 AI 模型
             self.model = ChatOpenAI(
                 model=self.basemodel,
                 base_url=self.openai_base_url,
@@ -183,20 +194,34 @@ class BaseAgent:
         except Exception as e:
             raise RuntimeError(f"❌ Failed to initialize AI model: {e}")
         
-        # Note: agent will be created in run_trading_session() based on specific date
-        # because system_prompt needs the current date and price information
+        # 注意：代理将在 run_trading_session() 中根据特定日期创建
+        # 因为 system_prompt 需要当前日期和价格信息
         
         print(f"✅ Agent {self.signature} initialization completed")
     
     def _setup_logging(self, today_date: str) -> str:
-        """Set up log file path"""
+        """
+        设置并返回当天的日志文件路径。
+
+        Args:
+            today_date (str): 当前日期，格式为 "YYYY-MM-DD"。
+
+        Returns:
+            str: 日志文件的完整路径。
+        """
         log_path = os.path.join(self.base_log_path, self.signature, 'log', today_date)
         if not os.path.exists(log_path):
             os.makedirs(log_path)
         return os.path.join(log_path, "log.jsonl")
     
     def _log_message(self, log_file: str, new_messages: List[Dict[str, str]]) -> None:
-        """Log messages to log file"""
+        """
+        将消息记录到指定的日志文件中。
+
+        Args:
+            log_file (str): 日志文件的路径。
+            new_messages (List[Dict[str, str]]): 要记录的新消息列表。
+        """
         log_entry = {
             "timestamp": datetime.now().isoformat(),
             "signature": self.signature,
@@ -206,7 +231,18 @@ class BaseAgent:
             f.write(json.dumps(log_entry, ensure_ascii=False) + "\n")
     
     async def _ainvoke_with_retry(self, message: List[Dict[str, str]]) -> Any:
-        """Agent invocation with retry"""
+        """
+        带重试逻辑的异步代理调用。
+
+        Args:
+            message (List[Dict[str, str]]): 发送给代理的消息。
+
+        Returns:
+            Any: 代理的响应。
+
+        Raises:
+            Exception: 如果所有重试都失败。
+        """
         for attempt in range(1, self.max_retries + 1):
             try:
                 return await self.agent.ainvoke(
@@ -222,64 +258,64 @@ class BaseAgent:
     
     async def run_trading_session(self, today_date: str) -> None:
         """
-        Run single day trading session
-        
+        运行单日的交易会话。
+
         Args:
-            today_date: Trading date
+            today_date (str): 当前交易日期，格式为 "YYYY-MM-DD"。
         """
         print(f"📈 Starting trading session: {today_date}")
         
-        # Set up logging
+        # 设置日志
         log_file = self._setup_logging(today_date)
         
-        # Update system prompt
+        # 更新系统提示并创建代理
         self.agent = create_agent(
             self.model,
             tools=self.tools,
             system_prompt=get_agent_system_prompt(today_date, self.signature),
         )
         
-        # Initial user query
+        # 初始用户查询
         user_query = [{"role": "user", "content": f"Please analyze and update today's ({today_date}) positions."}]
         message = user_query.copy()
         
-        # Log initial message
+        # 记录初始消息
         self._log_message(log_file, user_query)
         
-        # Trading loop
+        # 交易循环
         current_step = 0
         while current_step < self.max_steps:
             current_step += 1
             print(f"🔄 Step {current_step}/{self.max_steps}")
             
             try:
-                # Call agent
+                # 调用代理
                 response = await self._ainvoke_with_retry(message)
                 
-                # Extract agent response
+                # 提取代理响应
                 agent_response = extract_conversation(response, "final")
                 
-                # Check stop signal
+                # 检查停止信号
                 if STOP_SIGNAL in agent_response:
                     print("✅ Received stop signal, trading session ended")
                     print(agent_response)
                     self._log_message(log_file, [{"role": "assistant", "content": agent_response}])
                     break
                 
-                # Extract tool messages
+                # 提取工具消息
                 tool_msgs = extract_tool_messages(response)
                 tool_response = '\n'.join([msg.content for msg in tool_msgs])
                 
-                # Prepare new messages
+                # 准备新消息
                 new_messages = [
                     {"role": "assistant", "content": agent_response},
                     {"role": "user", "content": f'Tool results: {tool_response}'}
                 ]
                 
-                # Add new messages
+                # 添加新消息
                 message.extend(new_messages)
                 
-                # Log messages
+                # 记录消息
                 self._log_message(log_file, new_messages[0])
                 self._log_message(log_file, new_messages[1])
                 
@@ -288,11 +324,17 @@ class BaseAgent:
                 print(f"Error details: {e}")
                 raise
         
-        # Handle trading results
+        # 处理交易结果
         await self._handle_trading_result(today_date)
     
     async def _handle_trading_result(self, today_date: str) -> None:
-        """Handle trading results"""
+        """
+        处理单日交易会话结束后的结果。
+        如果发生了交易，则记录；否则，记录为无交易日。
+
+        Args:
+            today_date (str): 当前交易日期。
+        """
         if_trade = get_config_value("IF_TRADE")
         if if_trade:
             write_config_value("IF_TRADE", False)
@@ -307,23 +349,25 @@ class BaseAgent:
             write_config_value("IF_TRADE", False)
     
     def register_agent(self) -> None:
-        """Register new agent, create initial positions"""
-        # Check if position.jsonl file already exists
+        """
+        注册新代理。如果仓位文件不存在，则创建初始仓位文件。
+        """
+        # 检查仓位文件是否已存在
         if os.path.exists(self.position_file):
             print(f"⚠️ Position file {self.position_file} already exists, skipping registration")
             return
         
-        # Ensure directory structure exists
+        # 确保目录结构存在
         position_dir = os.path.join(self.data_path, "position")
         if not os.path.exists(position_dir):
             os.makedirs(position_dir)
             print(f"📁 Created position directory: {position_dir}")
         
-        # Create initial positions
+        # 创建初始仓位
         init_position = {symbol: 0 for symbol in self.stock_symbols}
         init_position['CASH'] = self.initial_cash
         
-        with open(self.position_file, "w") as f:  # Use "w" mode to ensure creating new file
+        with open(self.position_file, "w") as f:  # 使用 "w" 模式确保创建新文件
             f.write(json.dumps({
                 "date": self.init_date, 
                 "id": 0, 
@@ -337,55 +381,57 @@ class BaseAgent:
     
     def get_trading_dates(self, init_date: str, end_date: str) -> List[str]:
         """
-        Get trading date list
-        
+        获取指定日期范围内的交易日期列表（周一至周五）。
+
         Args:
-            init_date: Start date
-            end_date: End date
+            init_date (str): 开始日期，格式为 "YYYY-MM-DD"。
+            end_date (str): 结束日期，格式为 "YYYY-MM-DD"。
             
         Returns:
-            List of trading dates
+            List[str]: 交易日期字符串列表。
         """
-        dates = []
         max_date = None
         
         if not os.path.exists(self.position_file):
             self.register_agent()
-            max_date = init_date
+            max_date = self.init_date
         else:
-            # Read existing position file, find latest date
+            # 读取现有仓位文件，找到最新日期
             with open(self.position_file, "r") as f:
-                for line in f:
-                    doc = json.loads(line)
-                    current_date = doc['date']
-                    if max_date is None:
-                        max_date = current_date
-                    else:
-                        current_date_obj = datetime.strptime(current_date, "%Y-%m-%d")
-                        max_date_obj = datetime.strptime(max_date, "%Y-%m-%d")
-                        if current_date_obj > max_date_obj:
-                            max_date = current_date
-        
-        # Check if new dates need to be processed
+                lines = f.readlines()
+                if lines:
+                    last_line = lines[-1]
+                    doc = json.loads(last_line)
+                    max_date = doc['date']
+
+        if max_date is None:
+            max_date = init_date
+
+        # 检查是否需要处理新日期
         max_date_obj = datetime.strptime(max_date, "%Y-%m-%d")
         end_date_obj = datetime.strptime(end_date, "%Y-%m-%d")
         
         if end_date_obj <= max_date_obj:
             return []
         
-        # Generate trading date list
+        # 生成交易日期列表
         trading_dates = []
         current_date = max_date_obj + timedelta(days=1)
         
         while current_date <= end_date_obj:
-            if current_date.weekday() < 5:  # Weekdays
+            if current_date.weekday() < 5:  # 周一至周五
                 trading_dates.append(current_date.strftime("%Y-%m-%d"))
             current_date += timedelta(days=1)
         
         return trading_dates
     
     async def run_with_retry(self, today_date: str) -> None:
-        """Run method with retry"""
+        """
+        带重试逻辑的运行方法，用于执行单个交易日的会话。
+
+        Args:
+            today_date (str): 要运行的交易日期。
+        """
         for attempt in range(1, self.max_retries + 1):
             try:
                 print(f"🔄 Attempting to run {self.signature} - {today_date} (Attempt {attempt})")
@@ -404,15 +450,15 @@ class BaseAgent:
     
     async def run_date_range(self, init_date: str, end_date: str) -> None:
         """
-        Run all trading days in date range
-        
+        运行指定日期范围内的所有交易日。
+
         Args:
-            init_date: Start date
-            end_date: End date
+            init_date (str): 开始日期，格式为 "YYYY-MM-DD"。
+            end_date (str): 结束日期，格式为 "YYYY-MM-DD"。
         """
         print(f"📅 Running date range: {init_date} to {end_date}")
         
-        # Get trading date list
+        # 获取交易日期列表
         trading_dates = self.get_trading_dates(init_date, end_date)
         
         if not trading_dates:
@@ -421,11 +467,11 @@ class BaseAgent:
         
         print(f"📊 Trading days to process: {trading_dates}")
         
-        # Process each trading day
+        # 处理每个交易日
         for date in trading_dates:
             print(f"🔄 Processing {self.signature} - Date: {date}")
             
-            # Set configuration
+            # 设置配置
             write_config_value("TODAY_DATE", date)
             write_config_value("SIGNATURE", self.signature)
             
@@ -439,7 +485,12 @@ class BaseAgent:
         print(f"✅ {self.signature} processing completed")
     
     def get_position_summary(self) -> Dict[str, Any]:
-        """Get position summary"""
+        """
+        获取最新的仓位摘要。
+
+        Returns:
+            Dict[str, Any]: 包含最新仓位信息的字典。如果文件不存在或为空，则返回错误信息。
+        """
         if not os.path.exists(self.position_file):
             return {"error": "Position file does not exist"}
         
@@ -460,7 +511,19 @@ class BaseAgent:
         }
     
     def __str__(self) -> str:
+        """
+        返回代理的字符串表示形式。
+
+        Returns:
+            str: 代理的描述字符串。
+        """
         return f"BaseAgent(signature='{self.signature}', basemodel='{self.basemodel}', stocks={len(self.stock_symbols)})"
     
     def __repr__(self) -> str:
+        """
+        返回代理的官方字符串表示形式。
+
+        Returns:
+            str: 代理的官方表示字符串。
+        """
         return self.__str__()

@@ -2,7 +2,7 @@ from fastmcp import FastMCP
 import sys
 import os
 from typing import Dict, List, Optional, Any
-# Add project root directory to Python path
+# 将项目根目录添加到 Python 路径
 project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, project_root)
 from tools.price_tools import get_yesterday_date, get_open_prices, get_yesterday_open_and_close_price, get_latest_position, get_yesterday_profit
@@ -15,90 +15,78 @@ mcp = FastMCP("TradeTools")
 @mcp.tool()
 def buy(symbol: str, amount: int) -> Dict[str, Any]:
     """
-    Buy stock function
-    
-    This function simulates stock buying operations, including the following steps:
-    1. Get current position and operation ID
-    2. Get stock opening price for the day
-    3. Validate buy conditions (sufficient cash)
-    4. Update position (increase stock quantity, decrease cash)
-    5. Record transaction to position.jsonl file
-    
+    买入股票函数。
+
+    该函数模拟股票买入操作，包括以下步骤：
+    1. 获取当前仓位和操作 ID。
+    2. 获取当天的股票开盘价。
+    3. 验证买入条件（现金是否充足）。
+    4. 更新仓位（增加股票数量，减少现金）。
+    5. 将交易记录到 position.jsonl 文件中。
+
     Args:
-        symbol: Stock symbol, such as "AAPL", "MSFT", etc.
-        amount: Buy quantity, must be a positive integer, indicating how many shares to buy
-        
+        symbol (str): 股票代码，例如 "AAPL", "MSFT" 等。
+        amount (int): 买入数量，必须是正整数，表示要买入多少股。
+
     Returns:
         Dict[str, Any]:
-          - Success: Returns new position dictionary (containing stock quantity and cash balance)
-          - Failure: Returns {"error": error message, ...} dictionary
-        
+          - 成功: 返回新的仓位字典（包含股票数量和现金余额）。
+          - 失败: 返回 {"error": 错误信息, ...} 字典。
+
     Raises:
-        ValueError: Raised when SIGNATURE environment variable is not set
-        
-    Example:
+        ValueError: 当 SIGNATURE 环境变量未设置时引发。
+
+    示例:
         >>> result = buy("AAPL", 10)
         >>> print(result)  # {"AAPL": 110, "MSFT": 5, "CASH": 5000.0, ...}
     """
-    # Step 1: Get environment variables and basic information
-    # Get signature (model name) from environment variable, used to determine data storage path
+    # 步骤 1: 获取环境变量和基本信息
     signature = get_config_value("SIGNATURE")
     if signature is None:
-        raise ValueError("SIGNATURE environment variable is not set")
+        raise ValueError("SIGNATURE 环境变量未设置")
     
-    # Get current trading date from environment variable
     today_date = get_config_value("TODAY_DATE")
     
-    # Step 2: Get current latest position and operation ID
-    # get_latest_position returns two values: position dictionary and current maximum operation ID
-    # This ID is used to ensure each operation has a unique identifier
+    # 步骤 2: 获取当前最新仓位和操作 ID
     try:
         current_position, current_action_id = get_latest_position(today_date, signature)
     except Exception as e:
         print(e)
-        print(current_position, current_action_id)
-        print(today_date, signature)
-    # Step 3: Get stock opening price for the day
-    # Use get_open_prices function to get the opening price of specified stock for the day
-    # If stock symbol does not exist or price data is missing, KeyError exception will be raised
+        return {"error": f"获取最新仓位时出错: {e}", "symbol": symbol, "date": today_date}
+
+    # 步骤 3: 获取当天的股票开盘价
     try:
         this_symbol_price = get_open_prices(today_date, [symbol])[f'{symbol}_price']
     except KeyError:
-        # Stock symbol does not exist or price data is missing, return error message
-        return {"error": f"Symbol {symbol} not found! This action will not be allowed.", "symbol": symbol, "date": today_date}
+        return {"error": f"未找到股票代码 {symbol}！此操作不允许。", "symbol": symbol, "date": today_date}
 
-    # Step 4: Validate buy conditions
-    # Calculate cash required for purchase: stock price × buy quantity
+    # 步骤 4: 验证买入条件
     try:
         cash_left = current_position["CASH"] - this_symbol_price * amount
     except Exception as e:
-        print(current_position, "CASH", this_symbol_price, amount)
+        return {"error": f"计算所需现金时出错: {e}", "symbol": symbol, "date": today_date}
 
-    # Check if cash balance is sufficient for purchase
     if cash_left < 0:
-        # Insufficient cash, return error message
-        return {"error": "Insufficient cash! This action will not be allowed.", "required_cash": this_symbol_price * amount, "cash_available": current_position.get("CASH", 0), "symbol": symbol, "date": today_date}
+        return {"error": "现金不足！此操作不允许。", "required_cash": this_symbol_price * amount, "cash_available": current_position.get("CASH", 0), "symbol": symbol, "date": today_date}
     else:
-        # Step 5: Execute buy operation, update position
-        # Create a copy of current position to avoid directly modifying original data
+        # 步骤 5: 执行买入操作，更新仓位
         new_position = current_position.copy()
-        
-        # Decrease cash balance
         new_position["CASH"] = cash_left
+        new_position[symbol] = new_position.get(symbol, 0) + amount
         
-        # Increase stock position quantity
-        new_position[symbol] += amount
-        
-        # Step 6: Record transaction to position.jsonl file
-        # Build file path: {project_root}/data/agent_data/{signature}/position/position.jsonl
-        # Use append mode ("a") to write new transaction record
-        # Each operation ID increments by 1, ensuring uniqueness of operation sequence
+        # 步骤 6: 将交易记录到 position.jsonl 文件
         position_file_path = os.path.join(project_root, "data", "agent_data", signature, "position", "position.jsonl")
         with open(position_file_path, "a") as f:
-            # Write JSON format transaction record, containing date, operation ID, transaction details and updated position
-            print(f"Writing to position.jsonl: {json.dumps({'date': today_date, 'id': current_action_id + 1, 'this_action':{'action':'buy','symbol':symbol,'amount':amount},'positions': new_position})}")
-            f.write(json.dumps({"date": today_date, "id": current_action_id + 1, "this_action":{"action":"buy","symbol":symbol,"amount":amount},"positions": new_position}) + "\n")
-        # Step 7: Return updated position
+            log_entry = {
+                "date": today_date,
+                "id": current_action_id + 1,
+                "this_action": {'action': 'buy', 'symbol': symbol, 'amount': amount},
+                "positions": new_position
+            }
+            print(f"正在写入 position.jsonl: {json.dumps(log_entry)}")
+            f.write(json.dumps(log_entry) + "\n")
+
+        # 步骤 7: 返回更新后的仓位
         write_config_value("IF_TRADE", True)
         print("IF_TRADE", get_config_value("IF_TRADE"))
         return new_position
@@ -106,92 +94,79 @@ def buy(symbol: str, amount: int) -> Dict[str, Any]:
 @mcp.tool()
 def sell(symbol: str, amount: int) -> Dict[str, Any]:
     """
-    Sell stock function
-    
-    This function simulates stock selling operations, including the following steps:
-    1. Get current position and operation ID
-    2. Get stock opening price for the day
-    3. Validate sell conditions (position exists, sufficient quantity)
-    4. Update position (decrease stock quantity, increase cash)
-    5. Record transaction to position.jsonl file
-    
+    卖出股票函数。
+
+    该函数模拟股票卖出操作，包括以下步骤：
+    1. 获取当前仓位和操作 ID。
+    2. 获取当天的股票开盘价。
+    3. 验证卖出条件（是否存在仓位，数量是否充足）。
+    4. 更新仓位（减少股票数量，增加现金）。
+    5. 将交易记录到 position.jsonl 文件中。
+
     Args:
-        symbol: Stock symbol, such as "AAPL", "MSFT", etc.
-        amount: Sell quantity, must be a positive integer, indicating how many shares to sell
-        
+        symbol (str): 股票代码，例如 "AAPL", "MSFT" 等。
+        amount (int): 卖出数量，必须是正整数，表示要卖出多少股。
+
     Returns:
         Dict[str, Any]:
-          - Success: Returns new position dictionary (containing stock quantity and cash balance)
-          - Failure: Returns {"error": error message, ...} dictionary
-        
+          - 成功: 返回新的仓位字典（包含股票数量和现金余额）。
+          - 失败: 返回 {"error": 错误信息, ...} 字典。
+
     Raises:
-        ValueError: Raised when SIGNATURE environment variable is not set
-        
-    Example:
+        ValueError: 当 SIGNATURE 环境变量未设置时引发。
+
+    示例:
         >>> result = sell("AAPL", 10)
         >>> print(result)  # {"AAPL": 90, "MSFT": 5, "CASH": 15000.0, ...}
     """
-    # Step 1: Get environment variables and basic information
-    # Get signature (model name) from environment variable, used to determine data storage path
+    # 步骤 1: 获取环境变量和基本信息
     signature = get_config_value("SIGNATURE")
     if signature is None:
-        raise ValueError("SIGNATURE environment variable is not set")
+        raise ValueError("SIGNATURE 环境变量未设置")
     
-    # Get current trading date from environment variable
     today_date = get_config_value("TODAY_DATE")
     
-    # Step 2: Get current latest position and operation ID
-    # get_latest_position returns two values: position dictionary and current maximum operation ID
-    # This ID is used to ensure each operation has a unique identifier
-    current_position, current_action_id = get_latest_position(today_date, signature)
+    # 步骤 2: 获取当前最新仓位和操作 ID
+    try:
+        current_position, current_action_id = get_latest_position(today_date, signature)
+    except Exception as e:
+        print(e)
+        return {"error": f"获取最新仓位时出错: {e}", "symbol": symbol, "date": today_date}
     
-    # Step 3: Get stock opening price for the day
-    # Use get_open_prices function to get the opening price of specified stock for the day
-    # If stock symbol does not exist or price data is missing, KeyError exception will be raised
+    # 步骤 3: 获取当天的股票开盘价
     try:
         this_symbol_price = get_open_prices(today_date, [symbol])[f'{symbol}_price']
     except KeyError:
-        # Stock symbol does not exist or price data is missing, return error message
-        return {"error": f"Symbol {symbol} not found! This action will not be allowed.", "symbol": symbol, "date": today_date}
+        return {"error": f"未找到股票代码 {symbol}！此操作不允许。", "symbol": symbol, "date": today_date}
 
-    # Step 4: Validate sell conditions
-    # Check if holding this stock
-    if symbol not in current_position:
-        return {"error": f"No position for {symbol}! This action will not be allowed.", "symbol": symbol, "date": today_date}
+    # 步骤 4: 验证卖出条件
+    if symbol not in current_position or current_position.get(symbol, 0) == 0:
+        return {"error": f"{symbol} 无仓位！此操作不允许。", "symbol": symbol, "date": today_date}
 
-    # Check if position quantity is sufficient for selling
-    if current_position[symbol] < amount:
-        return {"error": "Insufficient shares! This action will not be allowed.", "have": current_position.get(symbol, 0), "want_to_sell": amount, "symbol": symbol, "date": today_date}
+    if current_position.get(symbol, 0) < amount:
+        return {"error": "持股不足！此操作不允许。", "have": current_position.get(symbol, 0), "want_to_sell": amount, "symbol": symbol, "date": today_date}
 
-    # Step 5: Execute sell operation, update position
-    # Create a copy of current position to avoid directly modifying original data
+    # 步骤 5: 执行卖出操作，更新仓位
     new_position = current_position.copy()
-    
-    # Decrease stock position quantity
     new_position[symbol] -= amount
-    
-    # Increase cash balance: sell price × sell quantity
-    # Use get method to ensure CASH field exists, default to 0 if not present
     new_position["CASH"] = new_position.get("CASH", 0) + this_symbol_price * amount
 
-    # Step 6: Record transaction to position.jsonl file
-    # Build file path: {project_root}/data/agent_data/{signature}/position/position.jsonl
-    # Use append mode ("a") to write new transaction record
-    # Each operation ID increments by 1, ensuring uniqueness of operation sequence
+    # 步骤 6: 将交易记录到 position.jsonl 文件
     position_file_path = os.path.join(project_root, "data", "agent_data", signature, "position", "position.jsonl")
     with open(position_file_path, "a") as f:
-        # Write JSON format transaction record, containing date, operation ID and updated position
-        print(f"Writing to position.jsonl: {json.dumps({'date': today_date, 'id': current_action_id + 1, 'this_action':{'action':'sell','symbol':symbol,'amount':amount},'positions': new_position})}")
-        f.write(json.dumps({"date": today_date, "id": current_action_id + 1, "this_action":{"action":"sell","symbol":symbol,"amount":amount},"positions": new_position}) + "\n")
+        log_entry = {
+            "date": today_date,
+            "id": current_action_id + 1,
+            "this_action": {'action': 'sell', 'symbol': symbol, 'amount': amount},
+            "positions": new_position
+        }
+        print(f"正在写入 position.jsonl: {json.dumps(log_entry)}")
+        f.write(json.dumps(log_entry) + "\n")
 
-    # Step 7: Return updated position
+    # 步骤 7: 返回更新后的仓位
     write_config_value("IF_TRADE", True)
     return new_position
 
 if __name__ == "__main__":
-    # new_result = buy("AAPL", 1)
-    # print(new_result)
-    # new_result = sell("AAPL", 1)
-    # print(new_result)
     port = int(os.getenv("TRADE_HTTP_PORT", "8002"))
     mcp.run(transport="streamable-http", port=port)

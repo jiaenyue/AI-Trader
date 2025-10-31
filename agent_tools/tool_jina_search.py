@@ -2,7 +2,6 @@ from typing import Dict, Any, Optional, List
 import os
 import logging
 import requests
-import requests
 from fastmcp import FastMCP
 from dotenv import load_dotenv
 load_dotenv()
@@ -20,18 +19,18 @@ logger = logging.getLogger(__name__)
 
 def parse_date_to_standard(date_str: str) -> str:
     """
-    Convert various date formats to standard format (YYYY-MM-DD HH:MM:SS)
-    
+    将各种日期格式转换为标准格式 (YYYY-MM-DD HH:MM:SS)。
+
     Args:
-        date_str: Date string in various formats, such as "2025-10-01T08:19:28+00:00", "4 hours ago", "1 day ago", "May 31, 2025"
-        
+        date_str (str): 各种格式的日期字符串，例如 "2025-10-01T08:19:28+00:00", "4 hours ago", "1 day ago", "May 31, 2025"。
+
     Returns:
-        Standard format datetime string, such as "2025-10-01 08:19:28"
+        str: 标准格式的日期时间字符串，例如 "2025-10-01 08:19:28"。
     """
     if not date_str or date_str == 'unknown':
         return 'unknown'
     
-    # Handle relative time formats
+    # 处理相对时间格式
     if 'ago' in date_str.lower():
         try:
             now = datetime.now()
@@ -46,17 +45,16 @@ def parse_date_to_standard(date_str: str) -> str:
                 target_date = now - timedelta(weeks=weeks)
             elif 'month' in date_str.lower():
                 months = int(re.findall(r'\d+', date_str)[0])
-                target_date = now - timedelta(days=months * 30)  # Approximate handling
+                target_date = now - timedelta(days=months * 30)  # 近似处理
             else:
                 return 'unknown'
             return target_date.strftime('%Y-%m-%d %H:%M:%S')
         except Exception:
             pass
     
-    # Handle ISO 8601 format, such as "2025-10-01T08:19:28+00:00"
+    # 处理 ISO 8601 格式
     try:
         if 'T' in date_str and ('+' in date_str or 'Z' in date_str or date_str.endswith('00:00')):
-            # Remove timezone information, keep only date and time part
             if '+' in date_str:
                 date_part = date_str.split('+')[0]
             elif 'Z' in date_str:
@@ -64,20 +62,16 @@ def parse_date_to_standard(date_str: str) -> str:
             else:
                 date_part = date_str
             
-            # Parse ISO format
             if '.' in date_part:
-                # Handle microseconds part, such as "2025-10-01T08:19:28.123456"
                 parsed_date = datetime.strptime(date_part.split('.')[0], '%Y-%m-%dT%H:%M:%S')
             else:
-                # Standard ISO format "2025-10-01T08:19:28"
                 parsed_date = datetime.strptime(date_part, '%Y-%m-%dT%H:%M:%S')
             return parsed_date.strftime('%Y-%m-%d %H:%M:%S')
     except Exception:
         pass
     
-    # Handle other common formats
+    # 处理其他常见格式
     try:
-        # Handle "May 31, 2025" format
         if ',' in date_str and len(date_str.split()) >= 3:
             parsed_date = datetime.strptime(date_str, '%b %d, %Y')
             return parsed_date.strftime('%Y-%m-%d %H:%M:%S')
@@ -85,38 +79,59 @@ def parse_date_to_standard(date_str: str) -> str:
         pass
     
     try:
-        # Handle "2025-10-01" format
         if re.match(r'\d{4}-\d{2}-\d{2}$', date_str):
             parsed_date = datetime.strptime(date_str, '%Y-%m-%d')
             return parsed_date.strftime('%Y-%m-%d %H:%M:%S')
     except Exception:
         pass
     
-    # If unable to parse, return original string
     return date_str
 
 class WebScrapingJinaTool:
+    """
+    一个使用 Jina AI API 进行网页搜索和内容提取的工具类。
+    """
     def __init__(self):
+        """
+        初始化工具，并检查 JINA_API_KEY 是否已设置。
+        """
         self.api_key = os.environ.get("JINA_API_KEY")
         if not self.api_key:
-            raise ValueError("Jina API key not provided! Please set JINA_API_KEY environment variable.")
+            raise ValueError("未提供 Jina API 密钥！请设置 JINA_API_KEY 环境变量。")
 
     def __call__(self, query: str) -> List[Dict[str, Any]]:
-        print(f"Searching for {query}")
+        """
+        执行搜索和内容抓取。
+
+        Args:
+            query (str): 搜索查询。
+
+        Returns:
+            List[Dict[str, Any]]: 包含抓取内容的字典列表。
+        """
+        print(f"正在搜索: {query}")
         all_urls = self._jina_search(query)
         return_content = []
-        print(f"Found {len(all_urls)} URLs")
+        print(f"找到 {len(all_urls)} 个 URL")
         if len(all_urls)>1:
-            # Randomly select three to form new all_urls
             all_urls = random.sample(all_urls, 1)
         for url in all_urls:
-            print(f"Scraping {url}")
+            print(f"正在抓取: {url}")
             return_content.append(self._jina_scrape(url))
-            print(f"Scraped {url}")
+            print(f"已抓取: {url}")
 
         return return_content  
 
     def _jina_scrape(self, url: str) -> Dict[str, Any]:
+        """
+        使用 Jina AI Reader API 抓取单个 URL 的内容。
+
+        Args:
+            url (str): 要抓取的 URL。
+
+        Returns:
+            Dict[str, Any]: 包含 URL、标题、描述、内容和发布时间的字典。
+        """
         try:
             jina_url = f'https://r.jina.ai/{url}'
             headers = {
@@ -128,7 +143,7 @@ class WebScrapingJinaTool:
             response = requests.get(jina_url, headers=headers)
 
             if response.status_code != 200:
-                raise Exception(f"Jina AI Reader Failed for {url}: {response.status_code}")
+                raise Exception(f"Jina AI Reader 在抓取 {url} 时失败: {response.status_code}")
 
             response_dict = response.json()
 
@@ -149,6 +164,15 @@ class WebScrapingJinaTool:
             }
 
     def _jina_search(self, query: str) -> List[str]:
+        """
+        使用 Jina AI Search API 搜索与查询相关的 URL。
+
+        Args:
+            query (str): 搜索查询。
+
+        Returns:
+            List[str]: URL 字符串列表。
+        """
         url = f'https://s.jina.ai/?q={query}&n=1'
         headers = {
             'Authorization': f'Bearer {self.api_key}',        
@@ -158,56 +182,49 @@ class WebScrapingJinaTool:
    
         try:
             response = requests.get(url, headers=headers)
-            response.raise_for_status()  # 检查HTTP状态码
+            response.raise_for_status()
             
             json_data = response.json()
             
-            # Check if response data is valid
             if json_data is None:
-                print(f"⚠️ Jina API returned empty data, query: {query}")
+                print(f"⚠️ Jina API 返回空数据, 查询: {query}")
                 return []
             
             if 'data' not in json_data:
-                print(f"⚠️ Jina API response format abnormal, query: {query}, response: {json_data}")
+                print(f"⚠️ Jina API 响应格式异常, 查询: {query}, 响应: {json_data}")
                 return []
             
-            all_urls = []
             filtered_urls = []
             
-            # Process search results, filter out content from TODAY_DATE and later
             for item in json_data.get('data', []):
                 if 'url' not in item:
                     continue
                     
-                # Get publication date and convert to standard format
                 raw_date = item.get('date', 'unknown')
                 standardized_date = parse_date_to_standard(raw_date)
                 
-                # If unable to parse date, keep this result
                 if standardized_date == 'unknown' or standardized_date == raw_date:
                     filtered_urls.append(item['url'])
                     continue
                 
-                # Check if before TODAY_DATE
                 today_date = get_config_value("TODAY_DATE")
                 if today_date:
                     if today_date > standardized_date:
                         filtered_urls.append(item['url'])
                 else:
-                    # If TODAY_DATE is not set, keep all results
                     filtered_urls.append(item['url'])
             
-            print(f"Found {len(filtered_urls)} URLs after filtering")
+            print(f"过滤后找到 {len(filtered_urls)} 个 URL")
             return filtered_urls
             
         except requests.exceptions.RequestException as e:
-            print(f"❌ Jina API request failed: {e}")
+            print(f"❌ Jina API 请求失败: {e}")
             return []
         except ValueError as e:
-            print(f"❌ Jina API response parsing failed: {e}")
+            print(f"❌ Jina API 响应解析失败: {e}")
             return []
         except Exception as e:
-            print(f"❌ Jina search unknown error: {e}")
+            print(f"❌ Jina 搜索未知错误: {e}")
             return []
 
 
@@ -217,55 +234,50 @@ mcp = FastMCP("Search")
 @mcp.tool()
 def get_information(query: str) -> str:
     """
-    Use search tool to scrape and return main content information related to specified query in a structured way.
+    使用搜索工具抓取并以结构化方式返回与指定查询相关的主要内容信息。
 
     Args:
-        query: Key information or search terms you want to retrieve, will search for the most matching results on the internet.
+        query (str): 您想要检索的关键信息或搜索词，将在互联网上搜索最匹配的结果。
 
     Returns:
-        A string containing several retrieved web page contents, structured content includes:
-        - URL: Original web page link
-        - Title: Web page title
-        - Description: Brief description of the web page
-        - Publish Time: Content publication date (if available)
-        - Content: Main text content of the web page (first 1000 characters)
+        str: 一个包含多个检索到的网页内容的字符串，结构化内容包括：
+        - URL: 原始网页链接
+        - 标题: 网页标题
+        - 描述: 网页的简要描述
+        - 发布时间: 内容发布日期（如果可用）
+        - 内容: 网页的主要文本内容（前 1000 个字符）
 
-        If scraping fails, returns corresponding error information.
+        如果抓取失败，则返回相应的错误信息。
     """
     try:
         tool = WebScrapingJinaTool()
         results = tool(query)
         
-        # Check if results are empty
         if not results:
-            return f"⚠️ Search query '{query}' found no results. May be network issue or API limitation."
+            return f"⚠️ 搜索查询 '{query}' 未找到结果。可能是网络问题或 API 限制。"
         
-        # Convert results to string format
         formatted_results = []
         for result in results:
             if 'error' in result:
-                formatted_results.append(f"Error: {result['error']}")
+                formatted_results.append(f"错误: {result['error']}")
             else:
                 formatted_results.append(f"""
 URL: {result['url']}
-Title: {result['title']}
-Description: {result['description']}
-Publish Time: {result['publish_time']}
-Content: {result['content'][:1000]}...
+标题: {result['title']}
+描述: {result['description']}
+发布时间: {result['publish_time']}
+内容: {result['content'][:1000]}...
 """)
         
         if not formatted_results:
-            return f"⚠️ Search query '{query}' returned empty results."
+            return f"⚠️ 搜索查询 '{query}' 返回了空结果。"
         
         return "\n".join(formatted_results)
         
     except Exception as e:
-        return f"❌ Search tool execution failed: {str(e)}"
+        return f"❌ 搜索工具执行失败: {str(e)}"
 
 
 if __name__ == "__main__":
-    # Run with streamable-http, support configuring host and port through environment variables to avoid conflicts
     port = int(os.getenv("SEARCH_HTTP_PORT", "8001"))
     mcp.run(transport="streamable-http", port=port)
-
-
