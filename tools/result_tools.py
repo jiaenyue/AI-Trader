@@ -48,18 +48,18 @@ def calculate_portfolio_value(positions: Dict[str, float], prices: Dict[str, Opt
     return total_value
 
 
-def get_available_date_range(signature: str) -> Tuple[str, str]:
+def get_available_date_range(modelname: str) -> Tuple[str, str]:
     """
     Get available data date range
     
     Args:
-        signature: Model name
+        modelname: Model name
     
     Returns:
         Tuple of (earliest date, latest date) in YYYY-MM-DD format
     """
     base_dir = Path(__file__).resolve().parents[1]
-    position_file = base_dir / "data" / "agent_data" / signature / "position" / "position.jsonl"
+    position_file = base_dir / "data" / "agent_data" / modelname / "position" / "position.jsonl"
     
     if not position_file.exists():
         return "", ""
@@ -85,12 +85,12 @@ def get_available_date_range(signature: str) -> Tuple[str, str]:
     return dates[0], dates[-1]
 
 
-def get_daily_portfolio_values(signature: str, start_date: Optional[str] = None, end_date: Optional[str] = None) -> Dict[str, float]:
+def get_daily_portfolio_values(modelname: str, start_date: Optional[str] = None, end_date: Optional[str] = None) -> Dict[str, float]:
     """
     Get daily portfolio values
     
     Args:
-        signature: Model name
+        modelname: Model name
         start_date: Start date in YYYY-MM-DD format, uses earliest date if None
         end_date: End date in YYYY-MM-DD format, uses latest date if None
     
@@ -98,7 +98,7 @@ def get_daily_portfolio_values(signature: str, start_date: Optional[str] = None,
         Dictionary of daily portfolio values in format {date: portfolio_value}
     """
     base_dir = Path(__file__).resolve().parents[1]
-    position_file = base_dir / "data" / "agent_data" / signature / "position" / "position.jsonl"
+    position_file = base_dir / "data" / "agent_data" / modelname / "position" / "position.jsonl"
     merged_file = base_dir / "data" / "merged.jsonl"
     
     if not position_file.exists() or not merged_file.exists():
@@ -106,7 +106,7 @@ def get_daily_portfolio_values(signature: str, start_date: Optional[str] = None,
     
     # Get available date range if not specified
     if start_date is None or end_date is None:
-        earliest_date, latest_date = get_available_date_range(signature)
+        earliest_date, latest_date = get_available_date_range(modelname)
         if not earliest_date or not latest_date:
             return {}
         
@@ -138,13 +138,7 @@ def get_daily_portfolio_values(signature: str, start_date: Optional[str] = None,
                 meta = doc.get("Meta Data", {})
                 symbol = meta.get("2. Symbol")
                 if symbol:
-                    # 查找所有以 "Time Series" 开头的键
-                    series = None
-                    for key, value in doc.items():
-                        if key.startswith("Time Series"):
-                            series = value
-                            break
-                    price_data[symbol] = series if series else {}
+                    price_data[symbol] = doc.get("Time Series (Daily)", {})
             except Exception:
                 continue
     
@@ -423,12 +417,12 @@ def calculate_profit_loss_ratio(returns: List[float]) -> float:
     return avg_profit / avg_loss
 
 
-def calculate_all_metrics(signature: str, start_date: Optional[str] = None, end_date: Optional[str] = None) -> Dict[str, any]:
+def calculate_all_metrics(modelname: str, start_date: Optional[str] = None, end_date: Optional[str] = None) -> Dict[str, any]:
     """
     Calculate all performance metrics
     
     Args:
-        signature: Model name
+        modelname: Model name
         start_date: Start date in YYYY-MM-DD format, uses earliest date if None
         end_date: End date in YYYY-MM-DD format, uses latest date if None
     
@@ -437,7 +431,7 @@ def calculate_all_metrics(signature: str, start_date: Optional[str] = None, end_
     """
     # Get available date range if not specified
     if start_date is None or end_date is None:
-        earliest_date, latest_date = get_available_date_range(signature)
+        earliest_date, latest_date = get_available_date_range(modelname)
         if not earliest_date or not latest_date:
             return {
                 "error": "Unable to get available data date range",
@@ -463,7 +457,7 @@ def calculate_all_metrics(signature: str, start_date: Optional[str] = None, end_
             end_date = latest_date
     
     # 获取每日投资组合价值
-    portfolio_values = get_daily_portfolio_values(signature, start_date, end_date)
+    portfolio_values = get_daily_portfolio_values(modelname, start_date, end_date)
     
     if not portfolio_values:
         return {
@@ -598,14 +592,14 @@ def get_next_id(filepath: Path) -> int:
     return max_id + 1
 
 
-def save_metrics_to_jsonl(metrics: Dict[str, any], signature: str, output_dir: Optional[str] = None) -> str:
+def save_metrics_to_jsonl(metrics: Dict[str, any], modelname: str, output_dir: Optional[str] = None) -> str:
     """
     Incrementally save metrics to JSONL format
     
     Args:
         metrics: Dictionary containing all metrics
-        signature: Model name
-        output_dir: Output directory, defaults to data/agent_data/{signature}/metrics/
+        modelname: Model name
+        output_dir: Output directory, defaults to data/agent_data/{modelname}/metrics/
     
     Returns:
         Path to saved file
@@ -613,7 +607,7 @@ def save_metrics_to_jsonl(metrics: Dict[str, any], signature: str, output_dir: O
     base_dir = Path(__file__).resolve().parents[1]
     
     if output_dir is None:
-        output_dir = base_dir / "data" / "agent_data" / signature / "metrics"
+        output_dir = base_dir / "data" / "agent_data" / modelname / "metrics"
     else:
         output_dir = Path(output_dir)
     
@@ -630,8 +624,7 @@ def save_metrics_to_jsonl(metrics: Dict[str, any], signature: str, output_dir: O
     # Prepare data to save
     save_data = {
         "id": next_id,
-        "timestamp": datetime.now().isoformat(),
-        "model_name": signature,
+        "model_name": modelname,
         "analysis_period": {
             "start_date": metrics.get("start_date", ""),
             "end_date": metrics.get("end_date", ""),
@@ -674,13 +667,13 @@ def save_metrics_to_jsonl(metrics: Dict[str, any], signature: str, output_dir: O
     return str(filepath)
 
 
-def get_latest_metrics(signature: str, output_dir: Optional[str] = None) -> Optional[Dict[str, any]]:
+def get_latest_metrics(modelname: str, output_dir: Optional[str] = None) -> Optional[Dict[str, any]]:
     """
     Get latest performance metrics record
     
     Args:
-        signature: Model name
-        output_dir: Output directory, defaults to data/agent_data/{signature}/metrics/
+        modelname: Model name
+        output_dir: Output directory, defaults to data/agent_data/{modelname}/metrics/
     
     Returns:
         Latest metrics record, or None if no records exist
@@ -688,7 +681,7 @@ def get_latest_metrics(signature: str, output_dir: Optional[str] = None) -> Opti
     base_dir = Path(__file__).resolve().parents[1]
     
     if output_dir is None:
-        output_dir = base_dir / "data" / "agent_data" / signature / "metrics"
+        output_dir = base_dir / "data" / "agent_data" / modelname / "metrics"
     else:
         output_dir = Path(output_dir)
     
@@ -716,13 +709,13 @@ def get_latest_metrics(signature: str, output_dir: Optional[str] = None) -> Opti
     return latest_record
 
 
-def get_metrics_history(signature: str, output_dir: Optional[str] = None, limit: Optional[int] = None) -> List[Dict[str, any]]:
+def get_metrics_history(modelname: str, output_dir: Optional[str] = None, limit: Optional[int] = None) -> List[Dict[str, any]]:
     """
     Get performance metrics history
     
     Args:
-        signature: Model name
-        output_dir: Output directory, defaults to data/agent_data/{signature}/metrics/
+        modelname: Model name
+        output_dir: Output directory, defaults to data/agent_data/{modelname}/metrics/
         limit: Limit number of records returned, None returns all records
     
     Returns:
@@ -731,7 +724,7 @@ def get_metrics_history(signature: str, output_dir: Optional[str] = None, limit:
     base_dir = Path(__file__).resolve().parents[1]
     
     if output_dir is None:
-        output_dir = base_dir / "data" / "agent_data" / signature / "metrics"
+        output_dir = base_dir / "data" / "agent_data" / modelname / "metrics"
     else:
         output_dir = Path(output_dir)
     
@@ -762,19 +755,19 @@ def get_metrics_history(signature: str, output_dir: Optional[str] = None, limit:
     return records
 
 
-def print_metrics_summary(signature: str, output_dir: Optional[str] = None) -> None:
+def print_metrics_summary(modelname: str, output_dir: Optional[str] = None) -> None:
     """
     Print performance metrics summary
     
     Args:
-        signature: Model name
+        modelname: Model name
         output_dir: Output directory
     """
-    print(f"📊 Model '{signature}' Performance Metrics Summary")
+    print(f"📊 Model '{modelname}' Performance Metrics Summary")
     print("=" * 60)
     
     # Get history records
-    history = get_metrics_history(signature, output_dir)
+    history = get_metrics_history(modelname, output_dir)
     
     if not history:
         print("❌ No history records found")
@@ -785,7 +778,6 @@ def print_metrics_summary(signature: str, output_dir: Optional[str] = None) -> N
     # Show latest record
     latest = history[-1]
     print(f"🕒 Latest Record (ID: {latest['id']}):")
-    print(f"   Time: {latest['timestamp']}")
     print(f"   Analysis Period: {latest['analysis_period']['start_date']} to {latest['analysis_period']['end_date']}")
     print(f"   Trading Days: {latest['analysis_period']['total_trading_days']}")
     
@@ -806,29 +798,28 @@ def print_metrics_summary(signature: str, output_dir: Optional[str] = None) -> N
         
         for record in recent_records:
             metrics = record['performance_metrics']
-            timestamp = record['timestamp'][:19]  # Show only date and time part
-            print(f"{record['id']:2d} | {timestamp} | {metrics['cumulative_return']:8.2%} | {metrics['annualized_return']:8.2%} | {metrics['sharpe_ratio']:8.4f}")
+            print(f"{record['id']:2d} | {metrics['cumulative_return']:8.2%} | {metrics['annualized_return']:8.2%} | {metrics['sharpe_ratio']:8.4f}")
 
 
-def calculate_and_save_metrics(signature: str, start_date: Optional[str] = None, end_date: Optional[str] = None, output_dir: Optional[str] = None, print_report: bool = True) -> Dict[str, any]:
+def calculate_and_save_metrics(modelname: str, start_date: Optional[str] = None, end_date: Optional[str] = None, output_dir: Optional[str] = None, print_report: bool = True) -> Dict[str, any]:
     """
     Entry function to calculate all metrics and save in JSONL format
     
     Args:
-        signature: Model name (SIGNATURE)
+        modelname: Model name (SIGNATURE)
         start_date: Start date in YYYY-MM-DD format, uses earliest date if None
         end_date: End date in YYYY-MM-DD format, uses latest date if None
-        output_dir: Output directory, defaults to data/agent_data/{signature}/metrics/
+        output_dir: Output directory, defaults to data/agent_data/{modelname}/metrics/
         print_report: Whether to print report
     
     Returns:
         Dictionary containing all metrics and saved file path
     """
-    print(f"Analyzing model: {signature}")
+    print(f"Analyzing model: {modelname}")
     
     # Show date range to be used if not specified
     if start_date is None or end_date is None:
-        earliest_date, latest_date = get_available_date_range(signature)
+        earliest_date, latest_date = get_available_date_range(modelname)
         if earliest_date and latest_date:
             if start_date is None:
                 start_date = earliest_date
@@ -840,7 +831,7 @@ def calculate_and_save_metrics(signature: str, start_date: Optional[str] = None,
             print("❌ Unable to get available data date range")
     
     # Calculate all metrics
-    metrics = calculate_all_metrics(signature, start_date, end_date)
+    metrics = calculate_all_metrics(modelname, start_date, end_date)
     
     if "error" in metrics:
         print(f"Error: {metrics['error']}")
@@ -848,12 +839,12 @@ def calculate_and_save_metrics(signature: str, start_date: Optional[str] = None,
     
     # Save in JSONL format
     try:
-        saved_file = save_metrics_to_jsonl(metrics, signature, output_dir)
+        saved_file = save_metrics_to_jsonl(metrics, modelname, output_dir)
         print(f"Metrics saved to: {saved_file}")
         metrics["saved_file"] = saved_file
         
         # Get ID of just saved record
-        latest_record = get_latest_metrics(signature, output_dir)
+        latest_record = get_latest_metrics(modelname, output_dir)
         if latest_record:
             metrics["record_id"] = latest_record["id"]
             print(f"Record ID: {latest_record['id']}")
@@ -871,11 +862,11 @@ def calculate_and_save_metrics(signature: str, start_date: Optional[str] = None,
 if __name__ == "__main__":
     # Test code
     # 测试代码
-    signature = get_config_value("SIGNATURE")
-    if signature is None:
+    modelname = get_config_value("SIGNATURE")
+    if modelname is None:
         print("错误: 未设置 SIGNATURE 环境变量")
         print("请设置环境变量 SIGNATURE，例如: export SIGNATURE=claude-3.7-sonnet")
         sys.exit(1)
     
     # 使用入口函数计算和保存指标
-    result = calculate_and_save_metrics(signature)
+    result = calculate_and_save_metrics(modelname)

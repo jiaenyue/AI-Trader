@@ -49,16 +49,16 @@ Notes:
 
 Here is the information you need:
 
-Current time:
+Today's date:
 {date}
 
-Your current positions (numbers after stock codes represent how many shares you hold, numbers after CASH represent your available cash):
+Yesterday's closing positions (numbers after stock codes represent how many shares you hold, numbers after CASH represent your available cash):
 {positions}
 
-The current value represented by the stocks you hold:
+Yesterday's closing prices:
 {yesterday_close_price}
 
-Current buying prices:
+Today's buying prices:
 {today_buy_price}
 
 When you think your task is complete, output
@@ -72,15 +72,14 @@ def get_agent_system_prompt(today_date: str, signature: str) -> str:
     yesterday_buy_prices, yesterday_sell_prices = get_yesterday_open_and_close_price(today_date, all_nasdaq_100_symbols)
     today_buy_price = get_open_prices(today_date, all_nasdaq_100_symbols)
     today_init_position = get_today_init_position(today_date, signature)
-    # yesterday_profit = get_yesterday_profit(today_date, yesterday_buy_prices, yesterday_sell_prices, today_init_position)
-    
+    yesterday_profit = get_yesterday_profit(today_date, yesterday_buy_prices, yesterday_sell_prices, today_init_position)
     return agent_system_prompt.format(
         date=today_date, 
         positions=today_init_position, 
         STOP_SIGNAL=STOP_SIGNAL,
         yesterday_close_price=yesterday_sell_prices,
         today_buy_price=today_buy_price,
-        # yesterday_profit=yesterday_profit
+        yesterday_profit=yesterday_profit
     )
 
 
