@@ -7,12 +7,30 @@ mcp = FastMCP("Math")
 
 @mcp.tool()
 def add(a: float, b: float) -> float:
-    """Add two numbers (supports int and float)"""
+    """
+    将两个数字相加（支持整数和浮点数）。
+
+    Args:
+        a (float): 第一个数字。
+        b (float): 第二个数字。
+
+    Returns:
+        float: 两个数字的和。
+    """
     return float(a) + float(b)
 
 @mcp.tool()
 def multiply(a: float, b: float) -> float:
-    """Multiply two numbers (supports int and float)"""
+    """
+    将两个数字相乘（支持整数和浮点数）。
+
+    Args:
+        a (float): 第一个数字。
+        b (float): 第二个数字。
+
+    Returns:
+        float: 两个数字的积。
+    """
     return float(a) * float(b)
 
 if __name__ == "__main__":
