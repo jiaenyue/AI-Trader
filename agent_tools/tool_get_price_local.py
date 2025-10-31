@@ -4,10 +4,17 @@ from datetime import datetime
 from typing import Dict, Any
 from fastmcp import FastMCP
 import os
+import sys
 from dotenv import load_dotenv
 load_dotenv()
 
 mcp = FastMCP("LocalPrices")
+
+# Ensure project root is on sys.path for absolute imports like `tools.*`
+project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if project_root not in sys.path:
+    sys.path.insert(0, project_root)
+
 from tools.general_tools import get_config_value
 
 def _workspace_data_path(filename: str) -> Path:
