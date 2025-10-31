@@ -17,6 +17,10 @@ AGENT_REGISTRY = {
         "module": "agent.base_agent.base_agent",
         "class": "BaseAgent"
     },
+    "BaseAgent_Hour": {
+        "module": "agent.base_agent.base_agent_hour",
+        "class": "BaseAgent_Hour"
+    },
 }
 
 
@@ -121,8 +125,17 @@ async def main(config_path=None):
         print(f"⚠️  Using environment variable to override END_DATE: {END_DATE}")
     
     # Validate date range
-    INIT_DATE_obj = datetime.strptime(INIT_DATE, "%Y-%m-%d").date()
-    END_DATE_obj = datetime.strptime(END_DATE, "%Y-%m-%d").date()
+    # Support both YYYY-MM-DD and YYYY-MM-DD HH:MM:SS formats
+    if ' ' in INIT_DATE:
+        INIT_DATE_obj = datetime.strptime(INIT_DATE, "%Y-%m-%d %H:%M:%S")
+    else:
+        INIT_DATE_obj = datetime.strptime(INIT_DATE, "%Y-%m-%d")
+    
+    if ' ' in END_DATE:
+        END_DATE_obj = datetime.strptime(END_DATE, "%Y-%m-%d %H:%M:%S")
+    else:
+        END_DATE_obj = datetime.strptime(END_DATE, "%Y-%m-%d")
+    
     if INIT_DATE_obj > END_DATE_obj:
         print("❌ INIT_DATE is greater than END_DATE")
         exit(1)
@@ -157,7 +170,7 @@ async def main(config_path=None):
         signature = model_config.get("signature")
         openai_base_url = model_config.get("openai_base_url",None)
         openai_api_key = model_config.get("openai_api_key",None)
-
+        
         # Validate required fields
         if not basemodel:
             print(f"❌ Model {model_name} missing basemodel field")
@@ -195,13 +208,13 @@ async def main(config_path=None):
                 basemodel=basemodel,
                 stock_symbols=all_nasdaq_100_symbols,
                 log_path=log_path,
-                openai_base_url=openai_base_url,
-                openai_api_key=openai_api_key,
                 max_steps=max_steps,
                 max_retries=max_retries,
                 base_delay=base_delay,
                 initial_cash=initial_cash,
-                init_date=INIT_DATE
+                init_date=INIT_DATE,
+                openai_base_url=openai_base_url,
+                openai_api_key=openai_api_key
             )
             
             print(f"✅ {agent_type} instance created successfully: {agent}")
