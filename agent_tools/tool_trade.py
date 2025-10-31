@@ -2,6 +2,8 @@ from fastmcp import FastMCP
 import sys
 import os
 from typing import Dict, List, Optional, Any
+import fcntl
+from pathlib import Path
 # Add project root directory to Python path
 project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, project_root)
@@ -9,6 +11,26 @@ from tools.price_tools import get_yesterday_date, get_open_prices, get_yesterday
 import json
 from tools.general_tools import get_config_value,write_config_value
 mcp = FastMCP("TradeTools")
+
+
+def _position_lock(signature: str):
+    """Context manager for file-based lock to serialize position updates per signature."""
+    class _Lock:
+        def __init__(self, name: str):
+            base_dir = Path(project_root) / "data" / "agent_data" / name
+            base_dir.mkdir(parents=True, exist_ok=True)
+            self.lock_path = base_dir / ".position.lock"
+            # Ensure lock file exists
+            self._fh = open(self.lock_path, "a+")
+        def __enter__(self):
+            fcntl.flock(self._fh.fileno(), fcntl.LOCK_EX)
+            return self
+        def __exit__(self, exc_type, exc, tb):
+            try:
+                fcntl.flock(self._fh.fileno(), fcntl.LOCK_UN)
+            finally:
+                self._fh.close()
+    return _Lock(signature)
 
 
 
@@ -52,12 +74,14 @@ def buy(symbol: str, amount: int) -> Dict[str, Any]:
     # Step 2: Get current latest position and operation ID
     # get_latest_position returns two values: position dictionary and current maximum operation ID
     # This ID is used to ensure each operation has a unique identifier
-    try:
-        current_position, current_action_id = get_latest_position(today_date, signature)
-    except Exception as e:
-        print(e)
-        print(current_position, current_action_id)
-        print(today_date, signature)
+    # Acquire lock for atomic read-modify-write on positions
+    with _position_lock(signature):
+        try:
+            current_position, current_action_id = get_latest_position(today_date, signature)
+        except Exception as e:
+            print(e)
+            print(today_date, signature)
+            return {"error": f"Failed to load latest position: {e}", "symbol": symbol, "date": today_date}
     # Step 3: Get stock opening price for the day
     # Use get_open_prices function to get the opening price of specified stock for the day
     # If stock symbol does not exist or price data is missing, KeyError exception will be raised
@@ -94,10 +118,12 @@ def buy(symbol: str, amount: int) -> Dict[str, Any]:
         # Use append mode ("a") to write new transaction record
         # Each operation ID increments by 1, ensuring uniqueness of operation sequence
         position_file_path = os.path.join(project_root, "data", "agent_data", signature, "position", "position.jsonl")
-        with open(position_file_path, "a") as f:
-            # Write JSON format transaction record, containing date, operation ID, transaction details and updated position
-            print(f"Writing to position.jsonl: {json.dumps({'date': today_date, 'id': current_action_id + 1, 'this_action':{'action':'buy','symbol':symbol,'amount':amount},'positions': new_position})}")
-            f.write(json.dumps({"date": today_date, "id": current_action_id + 1, "this_action":{"action":"buy","symbol":symbol,"amount":amount},"positions": new_position}) + "\n")
+        os.makedirs(os.path.dirname(position_file_path), exist_ok=True)
+        with _position_lock(signature):
+            with open(position_file_path, "a") as f:
+                # Write JSON format transaction record, containing date, operation ID, transaction details and updated position
+                print(f"Writing to position.jsonl: {json.dumps({'date': today_date, 'id': current_action_id + 1, 'this_action':{'action':'buy','symbol':symbol,'amount':amount},'positions': new_position})}")
+                f.write(json.dumps({"date": today_date, "id": current_action_id + 1, "this_action":{"action":"buy","symbol":symbol,"amount":amount},"positions": new_position}) + "\n")
         # Step 7: Return updated position
         write_config_value("IF_TRADE", True)
         print("IF_TRADE", get_config_value("IF_TRADE"))
@@ -140,10 +166,11 @@ def sell(symbol: str, amount: int) -> Dict[str, Any]:
     # Get current trading date from environment variable
     today_date = get_config_value("TODAY_DATE")
     
-    # Step 2: Get current latest position and operation ID
+    # Step 2: Get current latest position and operation ID under lock
     # get_latest_position returns two values: position dictionary and current maximum operation ID
     # This ID is used to ensure each operation has a unique identifier
-    current_position, current_action_id = get_latest_position(today_date, signature)
+    with _position_lock(signature):
+        current_position, current_action_id = get_latest_position(today_date, signature)
     
     # Step 3: Get stock opening price for the day
     # Use get_open_prices function to get the opening price of specified stock for the day
@@ -179,10 +206,12 @@ def sell(symbol: str, amount: int) -> Dict[str, Any]:
     # Use append mode ("a") to write new transaction record
     # Each operation ID increments by 1, ensuring uniqueness of operation sequence
     position_file_path = os.path.join(project_root, "data", "agent_data", signature, "position", "position.jsonl")
-    with open(position_file_path, "a") as f:
-        # Write JSON format transaction record, containing date, operation ID and updated position
-        print(f"Writing to position.jsonl: {json.dumps({'date': today_date, 'id': current_action_id + 1, 'this_action':{'action':'sell','symbol':symbol,'amount':amount},'positions': new_position})}")
-        f.write(json.dumps({"date": today_date, "id": current_action_id + 1, "this_action":{"action":"sell","symbol":symbol,"amount":amount},"positions": new_position}) + "\n")
+    os.makedirs(os.path.dirname(position_file_path), exist_ok=True)
+    with _position_lock(signature):
+        with open(position_file_path, "a") as f:
+            # Write JSON format transaction record, containing date, operation ID and updated position
+            print(f"Writing to position.jsonl: {json.dumps({'date': today_date, 'id': current_action_id + 1, 'this_action':{'action':'sell','symbol':symbol,'amount':amount},'positions': new_position})}")
+            f.write(json.dumps({"date": today_date, "id": current_action_id + 1, "this_action":{"action":"sell","symbol":symbol,"amount":amount},"positions": new_position}) + "\n")
 
     # Step 7: Return updated position
     write_config_value("IF_TRADE", True)

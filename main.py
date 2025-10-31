@@ -171,8 +171,16 @@ async def main(config_path=None):
         print(f"📝 Signature: {signature}")
         print(f"🔧 BaseModel: {basemodel}")
         
-        # Initialize runtime configuration
-        write_config_value("SIGNATURE", signature)
+        # Initialize per-signature runtime configuration
+        # Use a per-signature runtime env file that stores only TODAY_DATE and IF_TRADE
+        # Also export SIGNATURE via process env for tools that read it (but do not persist it)
+        from pathlib import Path as _Path
+        project_root = _Path(__file__).resolve().parent
+        runtime_env_dir = project_root / "data" / "agent_data" / signature
+        runtime_env_dir.mkdir(parents=True, exist_ok=True)
+        runtime_env_path = runtime_env_dir / ".runtime_env.json"
+        os.environ["RUNTIME_ENV_PATH"] = str(runtime_env_path)
+        os.environ["SIGNATURE"] = signature
         write_config_value("TODAY_DATE", END_DATE)
         write_config_value("IF_TRADE", False)
 
