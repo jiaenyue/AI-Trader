@@ -69,6 +69,10 @@ async function init() {
         // Create legend
         createLegend();
 
+        // Create leaderboard and action flow
+        await createLeaderboard();
+        await createActionFlow();
+
         // Set up event listeners
         setupEventListeners();
 
@@ -114,8 +118,24 @@ function updateStats() {
 
     // Update DOM
     document.getElementById('agent-count').textContent = agentCount;
+
+    // Format date range for hourly data - show only dates without time
+    const formatDateRange = (dateStr) => {
+        if (!dateStr) return 'N/A';
+        // If the date includes time (hourly format), format date only
+        if (dateStr.includes(':')) {
+            const date = new Date(dateStr);
+            return date.toLocaleString('en-US', {
+                month: 'short',
+                day: 'numeric',
+                year: 'numeric'
+            });
+        }
+        return dateStr;
+    };
+
     document.getElementById('trading-period').textContent = minDate && maxDate ?
-        `${minDate} to ${maxDate}` : 'N/A';
+        `${formatDateRange(minDate)} to ${formatDateRange(maxDate)}` : 'N/A';
     document.getElementById('best-performer').textContent = bestAgent ?
         dataLoader.getAgentDisplayName(bestAgent) : 'N/A';
     document.getElementById('avg-return').textContent = bestAgent ?
@@ -262,20 +282,132 @@ function createChart() {
                     display: false
                 },
                 tooltip: {
-                    backgroundColor: 'rgba(26, 34, 56, 0.95)',
-                    titleColor: '#00d4ff',
-                    bodyColor: '#fff',
-                    borderColor: '#2d3748',
-                    borderWidth: 1,
-                    padding: 12,
-                    displayColors: true,
-                    callbacks: {
-                        label: function(context) {
-                            const label = context.dataset.label || '';
-                            const value = dataLoader.formatCurrency(context.parsed.y);
-                            // Tooltips don't support images, so just show label and value
-                            return `${label}: ${value}`;
+                    enabled: false,
+                    external: function(context) {
+                        // Custom HTML tooltip
+                        const tooltipModel = context.tooltip;
+                        let tooltipEl = document.getElementById('chartjs-tooltip');
+
+                        // Create element on first render
+                        if (!tooltipEl) {
+                            tooltipEl = document.createElement('div');
+                            tooltipEl.id = 'chartjs-tooltip';
+                            tooltipEl.innerHTML = '<div class="tooltip-container"></div>';
+                            document.body.appendChild(tooltipEl);
                         }
+
+                        // Hide if no tooltip
+                        if (tooltipModel.opacity === 0) {
+                            tooltipEl.style.opacity = 0;
+                            return;
+                        }
+
+                        // Set Text
+                        if (tooltipModel.body) {
+                            const dataPoints = tooltipModel.dataPoints || [];
+
+                            // Sort data points by value at this time point (descending)
+                            const sortedPoints = [...dataPoints].sort((a, b) => {
+                                const valueA = a.parsed.y || 0;
+                                const valueB = b.parsed.y || 0;
+                                return valueB - valueA;
+                            });
+
+                            // Format title (date/time)
+                            const titleLines = tooltipModel.title || [];
+                            let titleHtml = '';
+                            if (titleLines.length > 0) {
+                                const dateStr = titleLines[0];
+                                if (dateStr && dateStr.includes(':')) {
+                                    const date = new Date(dateStr);
+                                    titleHtml = date.toLocaleString('en-US', {
+                                        month: 'short',
+                                        day: 'numeric',
+                                        year: 'numeric',
+                                        hour: '2-digit',
+                                        minute: '2-digit'
+                                    });
+                                } else {
+                                    titleHtml = dateStr;
+                                }
+                            }
+
+                            // Build body HTML with logos and ranked data
+                            let innerHtml = `<div class="tooltip-title">${titleHtml}</div>`;
+                            innerHtml += '<div class="tooltip-body">';
+
+                            sortedPoints.forEach((dataPoint, index) => {
+                                const dataset = dataPoint.dataset;
+                                const agentName = dataset.agentName;
+                                const displayName = dataset.label;
+                                const value = dataPoint.parsed.y;
+                                const icon = dataLoader.getAgentIcon(agentName);
+                                const color = dataset.borderColor;
+
+                                // Add ranking badge
+                                const rankBadge = `<span class="rank-badge">#${index + 1}</span>`;
+
+                                innerHtml += `
+                                    <div class="tooltip-row">
+                                        ${rankBadge}
+                                        <img src="${icon}" class="tooltip-icon" alt="${displayName}">
+                                        <span class="tooltip-label" style="color: ${color}">${displayName}</span>
+                                        <span class="tooltip-value">${dataLoader.formatCurrency(value)}</span>
+                                    </div>
+                                `;
+                            });
+
+                            innerHtml += '</div>';
+
+                            const container = tooltipEl.querySelector('.tooltip-container');
+                            container.innerHTML = innerHtml;
+                        }
+
+                        const position = context.chart.canvas.getBoundingClientRect();
+                        const tooltipWidth = tooltipEl.offsetWidth || 300;
+                        const tooltipHeight = tooltipEl.offsetHeight || 200;
+
+                        // Smart positioning to prevent overflow
+                        let left = position.left + window.pageXOffset + tooltipModel.caretX;
+                        let top = position.top + window.pageYOffset + tooltipModel.caretY;
+
+                        // Offset to prevent covering the hover point
+                        const offset = 15;
+                        left += offset;
+                        top -= offset;
+
+                        // Check if tooltip would go off right edge
+                        const viewportWidth = window.innerWidth;
+                        const viewportHeight = window.innerHeight;
+
+                        if (left + tooltipWidth > viewportWidth - 20) {
+                            // Position to the left of the cursor instead
+                            left = position.left + window.pageXOffset + tooltipModel.caretX - tooltipWidth - offset;
+                        }
+
+                        // Check if tooltip would go off bottom edge
+                        if (top + tooltipHeight > viewportHeight - 20) {
+                            top = viewportHeight - tooltipHeight - 20;
+                        }
+
+                        // Check if tooltip would go off top edge
+                        if (top < 20) {
+                            top = 20;
+                        }
+
+                        // Check if tooltip would go off left edge
+                        if (left < 20) {
+                            left = 20;
+                        }
+
+                        // Display, position, and set styles
+                        tooltipEl.style.opacity = 1;
+                        tooltipEl.style.position = 'absolute';
+                        tooltipEl.style.left = left + 'px';
+                        tooltipEl.style.top = top + 'px';
+                        tooltipEl.style.pointerEvents = 'none';
+                        tooltipEl.style.transition = 'opacity 0.2s ease, transform 0.2s ease';
+                        tooltipEl.style.transform = 'translateZ(0)'; // GPU acceleration
                     }
                 }
             },
@@ -293,9 +425,25 @@ function createChart() {
                         maxRotation: 45,
                         minRotation: 45,
                         autoSkip: true,
-                        maxTicksLimit: 10,
+                        maxTicksLimit: 15,
                         font: {
                             size: 11
+                        },
+                        callback: function(value, index) {
+                            // Format hourly timestamps for better readability
+                            const dateStr = this.getLabelForValue(value);
+                            if (!dateStr) return '';
+
+                            // If it's an hourly timestamp (contains time)
+                            if (dateStr.includes(':')) {
+                                const date = new Date(dateStr);
+                                // Show date and hour
+                                const month = (date.getMonth() + 1).toString().padStart(2, '0');
+                                const day = date.getDate().toString().padStart(2, '0');
+                                const hour = date.getHours().toString().padStart(2, '0');
+                                return `${month}/${day} ${hour}:00`;
+                            }
+                            return dateStr;
                         }
                     }
                 },
@@ -450,6 +598,111 @@ function setupEventListeners() {
 
     // Also handle orientation change for mobile
     window.addEventListener('orientationchange', handleResize);
+}
+
+// Create leaderboard
+async function createLeaderboard() {
+    const leaderboard = await window.transactionLoader.buildLeaderboard(allAgentsData);
+    const container = document.getElementById('leaderboardList');
+    container.innerHTML = '';
+
+    leaderboard.forEach((item, index) => {
+        const rankClass = index === 0 ? 'first' : index === 1 ? 'second' : index === 2 ? 'third' : '';
+        const gainClass = item.gain >= 0 ? 'positive' : 'negative';
+
+        const itemEl = document.createElement('div');
+        itemEl.className = 'leaderboard-item';
+        itemEl.style.animationDelay = `${index * 0.05}s`;
+        itemEl.innerHTML = `
+            <div class="leaderboard-rank ${rankClass}">#${item.rank}</div>
+            <div class="leaderboard-icon">
+                <img src="${item.icon}" alt="${item.displayName}">
+            </div>
+            <div class="leaderboard-info">
+                <div class="leaderboard-name">${item.displayName}</div>
+                <div class="leaderboard-value">${window.transactionLoader.formatCurrency(item.currentValue)}</div>
+            </div>
+            <div class="leaderboard-gain">
+                <div class="gain-amount ${gainClass}">${window.transactionLoader.formatCurrency(item.gain)}</div>
+                <div class="gain-percent ${gainClass}">${window.transactionLoader.formatPercent(item.gainPercent)}</div>
+            </div>
+        `;
+
+        container.appendChild(itemEl);
+    });
+}
+
+// Create action flow
+async function createActionFlow() {
+    // Load all transactions
+    await window.transactionLoader.loadAllTransactions();
+    const recentTransactions = window.transactionLoader.getMostRecentTransactions(100);
+
+    const container = document.getElementById('actionList');
+    container.innerHTML = '';
+
+    // Load thinking for each transaction (limit to first 20 for performance)
+    const transactionsToShow = recentTransactions.slice(0, 20);
+
+    for (let i = 0; i < transactionsToShow.length; i++) {
+        const transaction = transactionsToShow[i];
+        const agentName = transaction.agentFolder;
+        const displayName = window.configLoader.getDisplayName(agentName);
+        const icon = window.configLoader.getIcon(agentName);
+        const actionClass = transaction.action;
+
+        // Load agent's thinking
+        const thinking = await window.transactionLoader.loadAgentThinking(agentName, transaction.date);
+
+        const cardEl = document.createElement('div');
+        cardEl.className = 'action-card';
+        cardEl.style.animationDelay = `${i * 0.03}s`;
+        cardEl.innerHTML = `
+            <div class="action-header">
+                <div class="action-agent-icon">
+                    <img src="${icon}" alt="${displayName}">
+                </div>
+                <div class="action-meta">
+                    <div class="action-agent-name">${displayName}</div>
+                    <div class="action-details">
+                        <span class="action-type ${actionClass}">${transaction.action}</span>
+                        <span class="action-symbol">${transaction.symbol}</span>
+                        <span>×${transaction.amount}</span>
+                    </div>
+                </div>
+                <div class="action-timestamp">${window.transactionLoader.formatDateTime(transaction.date)}</div>
+            </div>
+            <div class="action-body">
+                <div class="action-thinking-label">
+                    <span class="thinking-icon">🧠</span>
+                    Agent Reasoning
+                </div>
+                <div class="action-thinking">${formatThinking(thinking)}</div>
+            </div>
+        `;
+
+        container.appendChild(cardEl);
+    }
+
+    // Add a note if there are more transactions
+    if (recentTransactions.length > 20) {
+        const noteEl = document.createElement('div');
+        noteEl.style.cssText = 'text-align: center; padding: 1rem; color: var(--text-muted); font-size: 0.9rem;';
+        noteEl.textContent = `Showing 20 of ${recentTransactions.length} recent transactions`;
+        container.appendChild(noteEl);
+    }
+}
+
+// Format thinking text into paragraphs
+function formatThinking(text) {
+    // Split by double newlines or numbered lists
+    const paragraphs = text.split(/\n\n+/).filter(p => p.trim());
+
+    if (paragraphs.length === 0) {
+        return `<p>${text}</p>`;
+    }
+
+    return paragraphs.map(p => `<p>${p.trim()}</p>`).join('');
 }
 
 // Loading overlay controls
