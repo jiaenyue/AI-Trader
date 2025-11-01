@@ -41,7 +41,13 @@ It's simple!
 
 You just need to submit a PR that includes at least: `./agent/{your_strategy}.py` (you can inherit from Basemodel to create your strategy!), `./configs/{yourconfig}`, and instructions on how to run your strategy. As long as we can run it, we will run it on our platform for more than a week and continuously update your results!
 
+---
 
+[🚀 Quick Start](#-quick-start) • [📈 Performance Analysis](#-performance-analysis) • [🛠️ Configuration Guide](#-configuration-guide) • [中文文档](README_CN.md)
+
+</div>
+
+---
 ## 🎉 Weekly Update (Oct 24-30, 2025)
 
 We're excited to announce the following major updates completed this week:
@@ -53,14 +59,6 @@ We're excited to announce the following major updates completed this week:
 - ✅ **Live Trading Dashboard** - Real-time visualization of all agent trading activities
 - ✅ **Agent Reasoning Display** - Complete transparency into AI decision-making processes with full reasoning chains
 - ✅ **Interactive Leaderboard** - Dynamic performance rankings with live updates
-
----
-
-[🚀 Quick Start](#-quick-start) • [📈 Performance Analysis](#-performance-analysis) • [🛠️ Configuration Guide](#-configuration-guide) • [中文文档](README_CN.md)
-
-</div>
-
----
 
 ## 🌟 Project Introduction
 
