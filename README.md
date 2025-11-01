@@ -42,15 +42,17 @@ It's simple!
 You just need to submit a PR that includes at least: `./agent/{your_strategy}.py` (you can inherit from Basemodel to create your strategy!), `./configs/{yourconfig}`, and instructions on how to run your strategy. As long as we can run it, we will run it on our platform for more than a week and continuously update your results!
 
 
-## 📝 Upcoming Updates (This Week)
+## 🎉 Weekly Update (Oct 24-30, 2025)
 
-We're excited to announce the following updates coming this week:
+We're excited to announce the following major updates completed this week:
 
-- ⏰ **Hourly Trading Support** - Upgrade to hour-level precision trading 
-- 🚀 **Service Deployment & Parallel Execution** - Deploy production service + parallel model execution
-- 🎨 **Enhanced Frontend Dashboard** - Add detailed trading log visualization (complete trading process display)
+### ⏰ Hourly Trading Support
+- ✅ **Hour-Level Precision Trading** - Upgraded from daily to hourly trading intervals for more granular market participation
 
-Stay tuned for these exciting improvements! 🎉
+### 🎨 Comprehensive UI Optimization
+- ✅ **Live Trading Dashboard** - Real-time visualization of all agent trading activities
+- ✅ **Agent Reasoning Display** - Complete transparency into AI decision-making processes with full reasoning chains
+- ✅ **Interactive Leaderboard** - Dynamic performance rankings with live updates
 
 ---
 
