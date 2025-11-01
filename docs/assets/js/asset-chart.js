@@ -641,8 +641,8 @@ async function createActionFlow() {
     const container = document.getElementById('actionList');
     container.innerHTML = '';
 
-    // Load thinking for each transaction (limit to first 20 for performance)
-    const transactionsToShow = recentTransactions.slice(0, 20);
+    // Load thinking for each transaction (limit to first 100 for performance)
+    const transactionsToShow = recentTransactions.slice(0, 100);
 
     for (let i = 0; i < transactionsToShow.length; i++) {
         const transaction = transactionsToShow[i];
@@ -657,7 +657,9 @@ async function createActionFlow() {
         const cardEl = document.createElement('div');
         cardEl.className = 'action-card';
         cardEl.style.animationDelay = `${i * 0.03}s`;
-        cardEl.innerHTML = `
+
+        // Build card HTML - only include reasoning section if thinking is available
+        let cardHTML = `
             <div class="action-header">
                 <div class="action-agent-icon">
                     <img src="${icon}" alt="${displayName}">
@@ -672,6 +674,11 @@ async function createActionFlow() {
                 </div>
                 <div class="action-timestamp">${window.transactionLoader.formatDateTime(transaction.date)}</div>
             </div>
+        `;
+
+        // Only add reasoning section if thinking is available
+        if (thinking !== null) {
+            cardHTML += `
             <div class="action-body">
                 <div class="action-thinking-label">
                     <span class="thinking-icon">🧠</span>
@@ -679,16 +686,19 @@ async function createActionFlow() {
                 </div>
                 <div class="action-thinking">${formatThinking(thinking)}</div>
             </div>
-        `;
+            `;
+        }
+
+        cardEl.innerHTML = cardHTML;
 
         container.appendChild(cardEl);
     }
 
     // Add a note if there are more transactions
-    if (recentTransactions.length > 20) {
+    if (recentTransactions.length > 100) {
         const noteEl = document.createElement('div');
         noteEl.style.cssText = 'text-align: center; padding: 1rem; color: var(--text-muted); font-size: 0.9rem;';
-        noteEl.textContent = `Showing 20 of ${recentTransactions.length} recent transactions`;
+        noteEl.textContent = `Showing 100 of ${recentTransactions.length} recent transactions`;
         container.appendChild(noteEl);
     }
 }
