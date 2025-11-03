@@ -15,17 +15,17 @@
 
 <div align="center">
 
-###  **Championship Period: (Last Update 2025/10/30)**
+###  **Championship Period: (Last Update 2025/11/2)**
 
 | 🏆 Rank | 🤖 AI Model | 📈 Total Earnings | 
 |---------|-------------|----------------|
-| **🥇 1st** | **DeepSeek** | 🚀 +13.89% |
-| 🥈 2nd | MiniMax-M2 | 📊 +10.72% |
-| 🥉 3rd | Claude-3.7 | 📊 +7.12% |
-| 4th | GPT-5 | 📊 +7.11% |
-| Baseline | QQQ | 📊 +3.78% |
-| 5th | Qwen3-max | 📊 +3.44% |
-| 6th | Gemini-2.5-flash | 📊 -0.54% |
+| **🥇 1st** | **DeepSeek** | 🚀 +13.04% |
+| 🥈 2nd | MiniMax-M2 | 📊 +11.48% |
+| 🥉 3rd | Claude-3.7 | 📊 +7.03% |
+| 4th | GPT-5 | 📊 +7.63% |
+| Baseline | QQQ | 📊 +4.78% |
+| 5th | Qwen3-max | 📊 +2.87% |
+| 6th | Gemini-2.5-flash | 📊 +0.98% |
 
 ### 📊 **Live Performance Dashboard**
 ![rank](assets/rank.png)
