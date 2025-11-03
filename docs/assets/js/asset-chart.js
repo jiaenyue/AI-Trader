@@ -2,6 +2,7 @@
 // Main page visualization
 
 const dataLoader = new DataLoader();
+window.dataLoader = dataLoader; // Make dataLoader globally accessible
 let chartInstance = null;
 let allAgentsData = {};
 let isLogScale = false;
@@ -39,8 +40,8 @@ function loadIconImage(iconPath) {
     });
 }
 
-// Initialize the page
-async function init() {
+// Load data and refresh UI
+async function loadDataAndRefresh() {
     showLoading();
 
     try {
@@ -69,19 +70,36 @@ async function init() {
         // Create legend
         createLegend();
 
-        // Create leaderboard and action flow
-        await createLeaderboard();
-        await createActionFlow();
-
-        // Set up event listeners
-        setupEventListeners();
+        // Update subtitle based on market
+        updateMarketSubtitle();
 
     } catch (error) {
-        console.error('Error initializing page:', error);
+        console.error('Error loading data:', error);
         alert('Failed to load trading data. Please check console for details.');
     } finally {
         hideLoading();
     }
+}
+
+// Update market subtitle
+function updateMarketSubtitle() {
+    const subtitle = document.getElementById('marketSubtitle');
+    if (subtitle) {
+        if (dataLoader.getMarket() === 'us') {
+            subtitle.textContent = 'Track how different AI models perform in Nasdaq-100 stock trading';
+        } else {
+            subtitle.textContent = 'Track how different AI models perform in SSE 50 A-share stock trading';
+        }
+    }
+}
+
+// Initialize the page
+async function init() {
+    // Set up event listeners first
+    setupEventListeners();
+    
+    // Load initial data
+    await loadDataAndRefresh();
 }
 
 // Update statistics cards
@@ -144,21 +162,31 @@ function updateStats() {
 
 // Create the main chart
 function createChart() {
+    // Destroy existing chart if any
+    if (chartInstance) {
+        chartInstance.destroy();
+        chartInstance = null;
+    }
+
     const ctx = document.getElementById('assetChart').getContext('2d');
 
     // Collect all unique dates and sort them
     const allDates = new Set();
     Object.keys(allAgentsData).forEach(agentName => {
-        allAgentsData[agentName].assetHistory.forEach(h => allDates.add(h.date));
+        const history = allAgentsData[agentName].assetHistory;
+        console.log(`Agent ${agentName}: ${history.length} data points`);
+        history.forEach(h => allDates.add(h.date));
     });
     const sortedDates = Array.from(allDates).sort();
+    console.log(`Total unique dates: ${sortedDates.length}`, sortedDates.slice(0, 10));
 
     const datasets = Object.keys(allAgentsData).map((agentName, index) => {
         const data = allAgentsData[agentName];
         let color, borderWidth, borderDash;
         
-        // Special styling for QQQ benchmark
-        if (agentName === 'QQQ') {
+        // Special styling for benchmark (QQQ or SSE 50)
+        const isBenchmark = agentName === 'QQQ' || agentName === 'SSE 50';
+        if (isBenchmark) {
             color = dataLoader.getAgentBrandColor(agentName) || '#ff6b00';
             borderWidth = 2;
             borderDash = [5, 5]; // Dashed line for benchmark
@@ -191,6 +219,7 @@ function createChart() {
             pointHoverBorderColor: '#fff',
             pointHoverBorderWidth: 3,
             fill: agentName !== 'QQQ', // No fill for QQQ benchmark
+            spanGaps: true, // Connect points across gaps (null values)
             agentName: agentName,
             agentIcon: dataLoader.getAgentIcon(agentName),
             cubicInterpolationMode: 'monotone' // Smooth, monotonic interpolation
@@ -275,8 +304,13 @@ function createChart() {
                 line: {
                     borderJoinStyle: 'round',
                     borderCapStyle: 'round'
+                },
+                point: {
+                    radius: 0,
+                    hoverRadius: 7
                 }
             },
+            spanGaps: true, // Global setting to connect lines across gaps
             plugins: {
                 legend: {
                     display: false
@@ -479,8 +513,9 @@ function createLegend() {
         const data = allAgentsData[agentName];
         let color, borderStyle;
         
-        // Special styling for QQQ benchmark
-        if (agentName === 'QQQ') {
+        // Special styling for benchmark (QQQ or SSE 50)
+        const isBenchmark = agentName === 'QQQ' || agentName === 'SSE 50';
+        if (isBenchmark) {
             color = dataLoader.getAgentBrandColor(agentName) || '#ff6b00';
             borderStyle = 'dashed';
         } else {
@@ -566,6 +601,34 @@ function exportData() {
 function setupEventListeners() {
     document.getElementById('toggle-log').addEventListener('click', toggleScale);
     document.getElementById('export-chart').addEventListener('click', exportData);
+
+    // Market selector buttons
+    const usMarketBtn = document.getElementById('usMarketBtn');
+    const cnMarketBtn = document.getElementById('cnMarketBtn');
+    
+    usMarketBtn.addEventListener('click', async () => {
+        if (dataLoader.getMarket() === 'us') return; // Already on US market
+        
+        // Switch to US market
+        usMarketBtn.classList.add('active');
+        cnMarketBtn.classList.remove('active');
+        dataLoader.setMarket('us');
+        
+        // Reload data
+        await loadDataAndRefresh();
+    });
+    
+    cnMarketBtn.addEventListener('click', async () => {
+        if (dataLoader.getMarket() === 'cn') return; // Already on CN market
+        
+        // Switch to CN market
+        cnMarketBtn.classList.add('active');
+        usMarketBtn.classList.remove('active');
+        dataLoader.setMarket('cn');
+        
+        // Reload data
+        await loadDataAndRefresh();
+    });
 
     // Scroll to top button
     const scrollBtn = document.getElementById('scrollToTop');
