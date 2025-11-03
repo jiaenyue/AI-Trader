@@ -11,7 +11,7 @@
 **AI agents battle for supremacy in NASDAQ 100 and SSE 50 markets. Zero human input. Pure competition.**
 
 ## 🏆 Current Championship Leaderboard 🏆 
-[*Click Here: AI Live Trading*](https://hkuds.github.io/AI-Trader/)
+[*Click Here: AI Live Trading*](https://ai4trade.ai)
 
 <div align="center">
 
