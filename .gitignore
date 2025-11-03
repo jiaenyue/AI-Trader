@@ -20,6 +20,7 @@ runtime_env.json
 mcp_services*.log
 test_run*.log
 # Environment variables
+AI-Trader-Astock_daily/
 .env
 .env.local
 .env.*.local

@@ -9,17 +9,22 @@ class DataLoader {
         this.baseDataPath = './data';
         this.currentMarket = 'us'; // 'us' or 'cn'
     }
-    
+
     // Switch market between US stocks and A-shares
     setMarket(market) {
         this.currentMarket = market;
         this.agentData = {};
         this.priceCache = {};
     }
-    
+
     // Get current market
     getMarket() {
         return this.currentMarket;
+    }
+
+    // Get current market configuration
+    getMarketConfig() {
+        return window.configLoader.getMarketConfig(this.currentMarket);
     }
 
     // Initialize with configuration
@@ -36,9 +41,10 @@ class DataLoader {
             // Ensure config is loaded
             await this.initialize();
 
-            const agentDataDir = this.currentMarket === 'us' ? 'agent_data' : 'agent_data_astock';
+            const marketConfig = this.getMarketConfig();
+            const agentDataDir = marketConfig ? marketConfig.data_dir : 'agent_data';
             const agents = [];
-            const enabledAgents = window.configLoader.getEnabledAgents();
+            const enabledAgents = window.configLoader.getEnabledAgents(this.currentMarket);
 
             for (const agentConfig of enabledAgents) {
                 try {
@@ -65,7 +71,8 @@ class DataLoader {
     // Load position data for a specific agent
     async loadAgentPositions(agentName) {
         try {
-            const agentDataDir = this.currentMarket === 'us' ? 'agent_data' : 'agent_data_astock';
+            const marketConfig = this.getMarketConfig();
+            const agentDataDir = marketConfig ? marketConfig.data_dir : 'agent_data';
             const response = await fetch(`${this.baseDataPath}/${agentDataDir}/${agentName}/position/position.jsonl`);
             if (!response.ok) throw new Error(`Failed to load positions for ${agentName}`);
 
@@ -100,14 +107,14 @@ class DataLoader {
 
             const text = await response.text();
             const lines = text.trim().split('\n');
-            
+
             for (const line of lines) {
                 if (!line.trim()) continue;
                 const data = JSON.parse(line);
                 const symbol = data['Meta Data']['2. Symbol'];
                 this.priceCache[symbol] = data['Time Series (Daily)'];
             }
-            
+
             console.log(`Loaded prices for ${Object.keys(this.priceCache).length} A-share stocks`);
             return this.priceCache;
         } catch (error) {
@@ -131,15 +138,29 @@ class DataLoader {
         // For US stocks, load individual JSON files
         try {
             const priceFilePrefix = window.configLoader.getPriceFilePrefix();
-            const response = await fetch(`${this.baseDataPath}/${priceFilePrefix}${symbol}.json`);
-            if (!response.ok) throw new Error(`Failed to load price for ${symbol}`);
+            const filePath = `${this.baseDataPath}/${priceFilePrefix}${symbol}.json`;
+            const response = await fetch(filePath);
+            if (!response.ok) {
+                console.warn(`[loadStockPrice] ❌ ${symbol}: HTTP ${response.status}`);
+                throw new Error(`Failed to load price for ${symbol}`);
+            }
 
             const data = await response.json();
             // Support both hourly (60min) and daily data formats
             this.priceCache[symbol] = data['Time Series (60min)'] || data['Time Series (Daily)'];
+
+            if (!this.priceCache[symbol]) {
+                console.warn(`[loadStockPrice] ❌ ${symbol}: No time series data found`);
+                return null;
+            }
+
+            const dataPointCount = Object.keys(this.priceCache[symbol]).length;
+            const sampleDates = Object.keys(this.priceCache[symbol]).sort().slice(0, 3);
+            console.log(`[loadStockPrice] ✅ ${symbol}: ${dataPointCount} points, samples: ${sampleDates.join(', ')}`);
+
             return this.priceCache[symbol];
         } catch (error) {
-            console.error(`Error loading price for ${symbol}:`, error);
+            console.error(`[loadStockPrice] ❌ ${symbol}:`, error.message);
             return null;
         }
     }
@@ -150,31 +171,33 @@ class DataLoader {
         if (!prices) {
             return null;
         }
-        
+
         // Try exact match first (for hourly data like "2025-10-01 10:00:00")
         if (prices[dateOrTimestamp]) {
             const closePrice = prices[dateOrTimestamp]['4. close'] || prices[dateOrTimestamp]['4. sell price'];
             return closePrice ? parseFloat(closePrice) : null;
         }
-        
-        // Extract date only for daily data matching
-        const dateOnly = dateOrTimestamp.split(' ')[0]; // "2025-10-01 10:00:00" -> "2025-10-01"
-        if (prices[dateOnly]) {
-            const closePrice = prices[dateOnly]['4. close'] || prices[dateOnly]['4. sell price'];
-            return closePrice ? parseFloat(closePrice) : null;
+
+        // For A-shares: Extract date only for daily data matching
+        if (this.currentMarket === 'cn') {
+            const dateOnly = dateOrTimestamp.split(' ')[0]; // "2025-10-01 10:00:00" -> "2025-10-01"
+            if (prices[dateOnly]) {
+                const closePrice = prices[dateOnly]['4. close'] || prices[dateOnly]['4. sell price'];
+                return closePrice ? parseFloat(closePrice) : null;
+            }
+
+            // If still not found, try to find the closest timestamp on the same date (for hourly data)
+            const datePrefix = dateOnly;
+            const matchingKeys = Object.keys(prices).filter(key => key.startsWith(datePrefix));
+
+            if (matchingKeys.length > 0) {
+                // Use the last (most recent) timestamp for that date
+                const lastKey = matchingKeys.sort().pop();
+                const closePrice = prices[lastKey]['4. close'] || prices[lastKey]['4. sell price'];
+                return closePrice ? parseFloat(closePrice) : null;
+            }
         }
-        
-        // If still not found, try to find the closest timestamp on the same date (for hourly data)
-        const datePrefix = dateOnly;
-        const matchingKeys = Object.keys(prices).filter(key => key.startsWith(datePrefix));
-        
-        if (matchingKeys.length > 0) {
-            // Use the last (most recent) timestamp for that date
-            const lastKey = matchingKeys.sort().pop();
-            const closePrice = prices[lastKey]['4. close'] || prices[lastKey]['4. sell price'];
-            return closePrice ? parseFloat(closePrice) : null;
-        }
-        
+
         return null;
     }
 
@@ -199,8 +222,8 @@ class DataLoader {
             }
         }
 
-        // If any stock price is missing, return null to skip this date
-        if (hasMissingPrice) {
+        // For A-shares: If any stock price is missing, return null to skip this date
+        if (this.currentMarket === 'cn' && hasMissingPrice) {
             return null;
         }
 
@@ -218,102 +241,151 @@ class DataLoader {
 
         console.log(`Processing ${positions.length} positions for ${agentName}...`);
 
-        // Detect if data is hourly or daily
-        const firstDate = positions[0]?.date || '';
-        const isHourlyData = firstDate.includes(':'); // Has time component
-        
-        console.log(`Detected ${isHourlyData ? 'hourly' : 'daily'} data format for ${agentName}`);
+        let assetHistory = [];
 
-        // Group positions by DATE (for hourly data, group by date and take last entry)
-        const positionsByDate = {};
-        positions.forEach(position => {
-            let dateKey;
-            if (isHourlyData) {
-                // Extract date only: "2025-10-01 10:00:00" -> "2025-10-01"
-                dateKey = position.date.split(' ')[0];
-            } else {
-                // Already in date format: "2025-10-01"
-                dateKey = position.date;
-            }
-            
-            // Keep the position with the highest ID for each date (most recent)
-            if (!positionsByDate[dateKey] || position.id > positionsByDate[dateKey].id) {
-                positionsByDate[dateKey] = {
-                    ...position,
-                    dateKey: dateKey,  // Store normalized date for price lookup
-                    originalDate: position.date  // Keep original for reference
-                };
-            }
-        });
+        if (this.currentMarket === 'cn') {
+            // A-SHARES LOGIC: Handle multiple transactions per day AND fill date gaps
 
-        // Convert to array and sort by date
-        const uniquePositions = Object.values(positionsByDate).sort((a, b) => {
-            return a.dateKey.localeCompare(b.dateKey);
-        });
-        
-        console.log(`Reduced from ${positions.length} to ${uniquePositions.length} unique daily positions for ${agentName}`);
-        
-        // Build asset history with gap filling
-        const assetHistory = [];
-        
-        if (uniquePositions.length === 0) {
-            console.warn(`No unique positions for ${agentName}`);
-            return null;
-        }
-        
-        // Get date range
-        const startDate = new Date(uniquePositions[0].dateKey);
-        const endDate = new Date(uniquePositions[uniquePositions.length - 1].dateKey);
-        
-        // Create a map of positions by date for quick lookup
-        const positionMap = {};
-        uniquePositions.forEach(pos => {
-            positionMap[pos.dateKey] = pos;
-        });
-        
-        // Fill all dates in range (skip weekends)
-        let currentPosition = null;
-        for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
-            const dateStr = d.toISOString().split('T')[0];
-            const dayOfWeek = d.getDay();
-            
-            // Skip weekends (Saturday = 6, Sunday = 0)
-            if (dayOfWeek === 0 || dayOfWeek === 6) {
-                continue;
-            }
-            
-            // Use position for this date if exists, otherwise use last known position
-            if (positionMap[dateStr]) {
-                currentPosition = positionMap[dateStr];
-            }
-            
-            // Skip if we don't have any position yet
-            if (!currentPosition) {
-                continue;
-            }
-            
-            // Calculate asset value using current iteration date for price lookup
-            // This ensures we get the price for the actual date we're calculating
-            const assetValue = await this.calculateAssetValue(currentPosition, dateStr);
-            
-            // Only skip if we couldn't calculate asset value due to missing prices
-            // Allow zero or negative values in case of losses
-            if (assetValue === null || isNaN(assetValue)) {
-                console.warn(`Skipping date ${dateStr} for ${agentName} due to missing price data`);
-                continue;
-            }
-            
-            assetHistory.push({
-                date: dateStr,
-                value: assetValue,
-                id: currentPosition.id,
-                action: positionMap[dateStr]?.this_action || null  // Only show action if position changed
+            // Detect if data is hourly or daily
+            const firstDate = positions[0]?.date || '';
+            const isHourlyData = firstDate.includes(':'); // Has time component
+
+            console.log(`Detected ${isHourlyData ? 'hourly' : 'daily'} data format for ${agentName}`);
+
+            // Group positions by DATE (for hourly data, group by date and take last entry)
+            const positionsByDate = {};
+            positions.forEach(position => {
+                let dateKey;
+                if (isHourlyData) {
+                    // Extract date only: "2025-10-01 10:00:00" -> "2025-10-01"
+                    dateKey = position.date.split(' ')[0];
+                } else {
+                    // Already in date format: "2025-10-01"
+                    dateKey = position.date;
+                }
+
+                // Skip weekends when building position map
+                const d = new Date(dateKey + 'T00:00:00');
+                const dayOfWeek = d.getDay();
+                if (dayOfWeek === 0 || dayOfWeek === 6) {
+                    console.log(`Skipping weekend date ${dateKey} from position data`);
+                    return; // Skip this position (it's a weekend)
+                }
+
+                // Keep the position with the highest ID for each date (most recent)
+                if (!positionsByDate[dateKey] || position.id > positionsByDate[dateKey].id) {
+                    positionsByDate[dateKey] = {
+                        ...position,
+                        dateKey: dateKey,  // Store normalized date for price lookup
+                        originalDate: position.date  // Keep original for reference
+                    };
+                }
             });
+
+            // Convert to array and sort by date
+            const uniquePositions = Object.values(positionsByDate).sort((a, b) => {
+                return a.dateKey.localeCompare(b.dateKey);
+            });
+
+            console.log(`Reduced from ${positions.length} to ${uniquePositions.length} unique daily positions for ${agentName}`);
+
+            if (uniquePositions.length === 0) {
+                console.warn(`No unique positions for ${agentName}`);
+                return null;
+            }
+
+            // Get date range
+            const startDate = new Date(uniquePositions[0].dateKey + 'T00:00:00');
+            const endDate = new Date(uniquePositions[uniquePositions.length - 1].dateKey + 'T00:00:00');
+
+            // Create a map of positions by date for quick lookup
+            const positionMap = {};
+            uniquePositions.forEach(pos => {
+                positionMap[pos.dateKey] = pos;
+            });
+
+            // Fill all dates in range (skip weekends)
+            let currentPosition = null;
+            for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
+                // Extract date string in local timezone (avoid UTC conversion issues)
+                const year = d.getFullYear();
+                const month = String(d.getMonth() + 1).padStart(2, '0');
+                const day = String(d.getDate()).padStart(2, '0');
+                const dateStr = `${year}-${month}-${day}`;
+                const dayOfWeek = d.getDay();
+
+                // Skip weekends (Saturday = 6, Sunday = 0)
+                if (dayOfWeek === 0 || dayOfWeek === 6) {
+                    console.log(`Skipping weekend in gap-fill loop: ${dateStr} (day ${dayOfWeek})`);
+                    continue;
+                }
+
+                // Use position for this date if exists, otherwise use last known position
+                if (positionMap[dateStr]) {
+                    currentPosition = positionMap[dateStr];
+                }
+
+                // Skip if we don't have any position yet
+                if (!currentPosition) {
+                    continue;
+                }
+
+                // Calculate asset value using current iteration date for price lookup
+                // This ensures we get the price for the actual date we're calculating
+                const assetValue = await this.calculateAssetValue(currentPosition, dateStr);
+
+                // Only skip if we couldn't calculate asset value due to missing prices
+                // Allow zero or negative values in case of losses
+                if (assetValue === null || isNaN(assetValue)) {
+                    console.warn(`Skipping date ${dateStr} for ${agentName} due to missing price data`);
+                    continue;
+                }
+
+                assetHistory.push({
+                    date: dateStr,
+                    value: assetValue,
+                    id: currentPosition.id,
+                    action: positionMap[dateStr]?.this_action || null  // Only show action if position changed
+                });
+            }
+
+        } else {
+            // US STOCKS LOGIC: Keep original simple logic
+
+            // Group positions by timestamp and take only the last position for each timestamp
+            const positionsByTimestamp = {};
+            positions.forEach(position => {
+                const timestamp = position.date;
+                if (!positionsByTimestamp[timestamp] || position.id > positionsByTimestamp[timestamp].id) {
+                    positionsByTimestamp[timestamp] = position;
+                }
+            });
+
+            // Convert to array and sort by timestamp
+            const uniquePositions = Object.values(positionsByTimestamp).sort((a, b) => {
+                if (a.date !== b.date) {
+                    return a.date.localeCompare(b.date);
+                }
+                return a.id - b.id;
+            });
+
+            console.log(`Reduced from ${positions.length} to ${uniquePositions.length} unique positions for ${agentName}`);
+
+            for (const position of uniquePositions) {
+                const timestamp = position.date;
+                const assetValue = await this.calculateAssetValue(position, timestamp);
+                assetHistory.push({
+                    date: timestamp,
+                    value: assetValue,
+                    id: position.id,
+                    action: position.this_action || null
+                });
+            }
         }
 
         // Check if we have enough valid data
         if (assetHistory.length === 0) {
-            console.warn(`No valid asset history for ${agentName}, all dates skipped due to missing prices`);
+            console.error(`❌ ${agentName}: NO VALID ASSET HISTORY`);
             return null;
         }
 
@@ -333,7 +405,7 @@ class DataLoader {
             initialValue: result.initialValue,
             currentValue: result.currentValue,
             return: result.return,
-            dateRange: assetHistory.length > 0 ? 
+            dateRange: assetHistory.length > 0 ?
                 `${assetHistory[0].date} to ${assetHistory[assetHistory.length - 1].date}` : 'N/A',
             sampleDates: assetHistory.slice(0, 5).map(h => h.date)
         });
@@ -343,30 +415,40 @@ class DataLoader {
 
     // Load benchmark data (QQQ for US, SSE 50 for A-shares)
     async loadBenchmarkData() {
+        const marketConfig = this.getMarketConfig();
+        if (!marketConfig) {
+            return await this.loadQQQData();
+        }
+
         if (this.currentMarket === 'us') {
             return await this.loadQQQData();
-        } else {
+        } else if (this.currentMarket === 'cn') {
             return await this.loadSSE50Data();
         }
+
+        return null;
     }
 
     // Load SSE 50 Index data for A-shares
     async loadSSE50Data() {
         try {
             console.log('Loading SSE 50 Index data...');
-            // SSE 50 Index code: 000016.SH
-            const response = await fetch(`${this.baseDataPath}/A_stock/index_daily_sse_50.json`);
+            const marketConfig = this.getMarketConfig();
+            const benchmarkFile = marketConfig ? marketConfig.benchmark_file : 'A_stock/index_daily_sse_50.json';
+
+            const response = await fetch(`${this.baseDataPath}/${benchmarkFile}`);
             if (!response.ok) throw new Error('Failed to load SSE 50 Index data');
-            
+
             const data = await response.json();
             const timeSeries = data['Time Series (Daily)'];
-            
+
             if (!timeSeries) {
                 console.warn('SSE 50 Index data not found');
                 return null;
             }
-            
-            return this.createBenchmarkAssetHistory('SSE 50', timeSeries, 'CNY');
+
+            const benchmarkName = marketConfig ? marketConfig.benchmark_display_name : 'SSE 50';
+            return this.createBenchmarkAssetHistory(benchmarkName, timeSeries, 'CNY');
         } catch (error) {
             console.error('Error loading SSE 50 data:', error);
             return null;
@@ -384,8 +466,8 @@ class DataLoader {
             const data = await response.json();
             // Support both hourly (60min) and daily data formats
             const timeSeries = data['Time Series (60min)'] || data['Time Series (Daily)'];
-            
-            return this.createBenchmarkAssetHistory('QQQ', timeSeries, 'USD');
+
+            return this.createBenchmarkAssetHistory('QQQ Invesco', timeSeries, 'USD');
         } catch (error) {
             console.error('Error loading QQQ data:', error);
             return null;
@@ -398,19 +480,19 @@ class DataLoader {
             // Convert to asset history format
             const assetHistory = [];
             const dates = Object.keys(timeSeries).sort();
-            
+
             // Calculate benchmark performance starting from first agent's initial value
             const agentNames = Object.keys(this.agentData);
             const uiConfig = window.configLoader.getUIConfig();
             let initialValue = uiConfig.initial_value; // Default initial value from config
-            
+
             if (agentNames.length > 0) {
                 const firstAgent = this.agentData[agentNames[0]];
                 if (firstAgent && firstAgent.assetHistory.length > 0) {
                     initialValue = firstAgent.assetHistory[0].value;
                 }
             }
-            
+
             // Find the earliest start date and latest end date across all agents
             let startDate = null;
             let endDate = null;
@@ -420,7 +502,7 @@ class DataLoader {
                     if (agent && agent.assetHistory.length > 0) {
                         const agentStartDate = agent.assetHistory[0].date;
                         const agentEndDate = agent.assetHistory[agent.assetHistory.length - 1].date;
-                        
+
                         if (!startDate || agentStartDate < startDate) {
                             startDate = agentStartDate;
                         }
@@ -430,27 +512,27 @@ class DataLoader {
                     }
                 });
             }
-            
+
             let benchmarkStartPrice = null;
             let currentValue = initialValue;
-            
+
             for (const date of dates) {
                 if (startDate && date < startDate) continue;
                 if (endDate && date > endDate) continue;
-                
+
                 // Support both US format ('4. close') and A-share format ('4. sell price')
                 const closePrice = timeSeries[date]['4. close'] || timeSeries[date]['4. sell price'];
                 if (!closePrice) continue;
-                
+
                 const price = parseFloat(closePrice);
                 if (!benchmarkStartPrice) {
                     benchmarkStartPrice = price;
                 }
-                
+
                 // Calculate benchmark performance relative to start
                 const benchmarkReturn = (price - benchmarkStartPrice) / benchmarkStartPrice;
                 currentValue = initialValue * (1 + benchmarkReturn);
-                
+
                 assetHistory.push({
                     date: date,
                     value: currentValue,
@@ -469,14 +551,14 @@ class DataLoader {
                     ((assetHistory[assetHistory.length - 1].value - assetHistory[0].value) / assetHistory[0].value * 100) : 0,
                 currency: currency
             };
-            
+
             console.log(`Successfully loaded ${name} data:`, {
                 assetHistory: assetHistory.length,
                 initialValue: result.initialValue,
                 currentValue: result.currentValue,
                 return: result.return
             });
-            
+
             return result;
         } catch (error) {
             console.error(`Error creating benchmark asset history for ${name}:`, error);
@@ -504,12 +586,12 @@ class DataLoader {
 
         console.log('Final allData:', Object.keys(allData));
         this.agentData = allData;
-        
+
         // Load benchmark data (QQQ for US, SSE 50 for A-shares)
         const benchmarkData = await this.loadBenchmarkData();
         if (benchmarkData) {
             allData[benchmarkData.name] = benchmarkData;
-            console.log(`Successfully added ${benchmarkData.name} benchmark to allData`);
+            console.log(`Successfully added ${benchmarkData.name} to allData`);
         }
 
         return allData;
@@ -527,10 +609,18 @@ class DataLoader {
     // Get trade history for an agent
     getTradeHistory(agentName) {
         const data = this.agentData[agentName];
-        if (!data) return [];
+        if (!data) {
+            console.log(`[getTradeHistory] No data for agent: ${agentName}`);
+            return [];
+        }
 
-        return data.positions
-            .filter(p => p.this_action)
+        console.log(`[getTradeHistory] Agent: ${agentName}, Total positions: ${data.positions.length}`);
+
+        const allActions = data.positions.filter(p => p.this_action);
+        console.log(`[getTradeHistory] Positions with this_action: ${allActions.length}`);
+
+        const trades = data.positions
+            .filter(p => p.this_action && p.this_action.action !== 'no_trade')
             .map(p => ({
                 date: p.date,
                 action: p.this_action.action,
@@ -538,13 +628,19 @@ class DataLoader {
                 amount: p.this_action.amount
             }))
             .reverse(); // Most recent first
+
+        console.log(`[getTradeHistory] Actual trades (excluding no_trade): ${trades.length}`);
+        console.log(`[getTradeHistory] First 3 trades:`, trades.slice(0, 3));
+
+        return trades;
     }
 
     // Format number as currency
     formatCurrency(value) {
-        const currency = this.currentMarket === 'us' ? 'USD' : 'CNY';
+        const marketConfig = this.getMarketConfig();
+        const currency = marketConfig ? marketConfig.currency : 'USD';
         const locale = this.currentMarket === 'us' ? 'en-US' : 'zh-CN';
-        
+
         return new Intl.NumberFormat(locale, {
             style: 'currency',
             currency: currency,
@@ -560,6 +656,10 @@ class DataLoader {
 
     // Get nice display name for agent
     getAgentDisplayName(agentName) {
+        const displayName = window.configLoader.getDisplayName(agentName, this.currentMarket);
+        if (displayName) return displayName;
+
+        // Fallback to legacy names
         const names = {
             'gemini-2.5-flash': 'Gemini-2.5-flash',
             'qwen3-max': 'Qwen3-max',
@@ -567,14 +667,18 @@ class DataLoader {
             'gpt-5': 'GPT-5',
             'deepseek-chat-v3.1': 'DeepSeek-v3.1',
             'claude-3.7-sonnet': 'Claude 3.7 Sonnet',
-            'QQQ': 'QQQ ETF',
-            'SSE 50': 'SSE 50 Index'
+            'QQQ Invesco': 'QQQ ETF',
+            'SSE 50 Index': 'SSE 50 Index'
         };
         return names[agentName] || agentName;
     }
 
     // Get icon for agent (SVG file path)
     getAgentIcon(agentName) {
+        const icon = window.configLoader.getIcon(agentName, this.currentMarket);
+        if (icon) return icon;
+
+        // Fallback to legacy icons
         const icons = {
             'gemini-2.5-flash': './figs/google.svg',
             'qwen3-max': './figs/qwen.svg',
@@ -582,8 +686,8 @@ class DataLoader {
             'gpt-5': './figs/openai.svg',
             'claude-3.7-sonnet': './figs/claude-color.svg',
             'deepseek-chat-v3.1': './figs/deepseek.svg',
-            'QQQ': './figs/stock.svg',
-            'SSE 50': './figs/stock.svg'
+            'QQQ Invesco': './figs/stock.svg',
+            'SSE 50 Index': './figs/stock.svg'
         };
         return icons[agentName] || './figs/stock.svg';
     }
@@ -596,15 +700,20 @@ class DataLoader {
 
     // Get brand color for agent
     getAgentBrandColor(agentName) {
+        const color = window.configLoader.getColor(agentName, this.currentMarket);
+        console.log(`[getAgentBrandColor] agentName: ${agentName}, market: ${this.currentMarket}, color: ${color}`);
+        if (color) return color;
+
+        // Fallback to legacy colors
         const colors = {
-            'gemini-2.5-flash': '#8A2BE2',      // Google purple
-            'qwen3-max': '#0066ff',       // Qwen Blue
-            'MiniMax-M2': '#ff0000',       // MiniMax Red
-            'gpt-5': '#10a37f',                  // OpenAI Green
-            'deepseek-chat-v3.1': '#4a90e2',  // DeepSeek Blue
-            'claude-3.7-sonnet': '#cc785c', // Anthropic Orange
-            'QQQ': '#ff6b00',                       // QQQ Orange
-            'SSE 50': '#e74c3c'              // SSE 50 Red
+            'gemini-2.5-flash': '#8A2BE2',
+            'qwen3-max': '#0066ff',
+            'MiniMax-M2': '#ff0000',
+            'gpt-5': '#10a37f',
+            'deepseek-chat-v3.1': '#4a90e2',
+            'claude-3.7-sonnet': '#cc785c',
+            'QQQ Invesco': '#ff6b00',
+            'SSE 50 Index': '#e74c3c'
         };
         return colors[agentName] || null;
     }

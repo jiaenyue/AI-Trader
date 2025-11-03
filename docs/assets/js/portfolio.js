@@ -38,7 +38,7 @@ async function loadDataAndRefresh() {
 async function init() {
     // Set up event listeners first
     setupEventListeners();
-    
+
     // Load initial data
     await loadDataAndRefresh();
 }
@@ -318,33 +318,29 @@ function setupEventListeners() {
         loadAgentPortfolio(e.target.value);
     });
 
-    // Market selector buttons
+    // Market switching
     const usMarketBtn = document.getElementById('usMarketBtn');
     const cnMarketBtn = document.getElementById('cnMarketBtn');
-    
-    usMarketBtn.addEventListener('click', async () => {
-        if (dataLoader.getMarket() === 'us') return; // Already on US market
-        
-        // Switch to US market
-        usMarketBtn.classList.add('active');
-        cnMarketBtn.classList.remove('active');
-        dataLoader.setMarket('us');
-        
-        // Reload data
-        await loadDataAndRefresh();
-    });
-    
-    cnMarketBtn.addEventListener('click', async () => {
-        if (dataLoader.getMarket() === 'cn') return; // Already on CN market
-        
-        // Switch to CN market
-        cnMarketBtn.classList.add('active');
-        usMarketBtn.classList.remove('active');
-        dataLoader.setMarket('cn');
-        
-        // Reload data
-        await loadDataAndRefresh();
-    });
+
+    if (usMarketBtn && cnMarketBtn) {
+        usMarketBtn.addEventListener('click', async () => {
+            if (dataLoader.getMarket() !== 'us') {
+                dataLoader.setMarket('us');
+                usMarketBtn.classList.add('active');
+                cnMarketBtn.classList.remove('active');
+                await loadDataAndRefresh();
+            }
+        });
+
+        cnMarketBtn.addEventListener('click', async () => {
+            if (dataLoader.getMarket() !== 'cn') {
+                dataLoader.setMarket('cn');
+                cnMarketBtn.classList.add('active');
+                usMarketBtn.classList.remove('active');
+                await loadDataAndRefresh();
+            }
+        });
+    }
 
     // Scroll to top button
     const scrollBtn = document.getElementById('scrollToTop');

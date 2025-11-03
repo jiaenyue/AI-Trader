@@ -2,7 +2,7 @@
 // Main page visualization
 
 const dataLoader = new DataLoader();
-window.dataLoader = dataLoader; // Make dataLoader globally accessible
+window.dataLoader = dataLoader; // Export to global for transaction-loader
 let chartInstance = null;
 let allAgentsData = {};
 let isLogScale = false;
@@ -40,11 +40,40 @@ function loadIconImage(iconPath) {
     });
 }
 
+// Update market subtitle based on current market
+function updateMarketSubtitle() {
+    console.log('[updateMarketSubtitle] Starting...');
+    console.log('[updateMarketSubtitle] Current market:', dataLoader.getMarket());
+
+    const marketConfig = dataLoader.getMarketConfig();
+    console.log('[updateMarketSubtitle] Market config:', marketConfig);
+
+    const subtitleElement = document.getElementById('marketSubtitle');
+    console.log('[updateMarketSubtitle] Subtitle element:', subtitleElement);
+
+    if (marketConfig && marketConfig.subtitle && subtitleElement) {
+        subtitleElement.textContent = marketConfig.subtitle;
+        console.log('Updated subtitle to:', marketConfig.subtitle);
+    } else {
+        console.warn('[updateMarketSubtitle] Missing required data:', {
+            hasMarketConfig: !!marketConfig,
+            hasSubtitle: marketConfig?.subtitle,
+            hasElement: !!subtitleElement
+        });
+    }
+}
+
 // Load data and refresh UI
 async function loadDataAndRefresh() {
     showLoading();
 
     try {
+        // Ensure config is loaded first
+        await dataLoader.initialize();
+
+        // Update subtitle for the current market
+        updateMarketSubtitle();
+
         // Load all agents data
         console.log('Loading all agents data...');
         allAgentsData = await dataLoader.loadAllAgentsData();
@@ -61,6 +90,13 @@ async function loadDataAndRefresh() {
         await Promise.all(iconPromises);
         console.log('Icons preloaded');
 
+        // Destroy existing chart if it exists
+        if (chartInstance) {
+            console.log('Destroying existing chart...');
+            chartInstance.destroy();
+            chartInstance = null;
+        }
+
         // Update stats
         updateStats();
 
@@ -70,8 +106,9 @@ async function loadDataAndRefresh() {
         // Create legend
         createLegend();
 
-        // Update subtitle based on market
-        updateMarketSubtitle();
+        // Create leaderboard and action flow
+        await createLeaderboard();
+        await createActionFlow();
 
     } catch (error) {
         console.error('Error loading data:', error);
@@ -81,23 +118,11 @@ async function loadDataAndRefresh() {
     }
 }
 
-// Update market subtitle
-function updateMarketSubtitle() {
-    const subtitle = document.getElementById('marketSubtitle');
-    if (subtitle) {
-        if (dataLoader.getMarket() === 'us') {
-            subtitle.textContent = 'Track how different AI models perform in Nasdaq-100 stock trading';
-        } else {
-            subtitle.textContent = 'Track how different AI models perform in SSE 50 A-share stock trading';
-        }
-    }
-}
-
 // Initialize the page
 async function init() {
     // Set up event listeners first
     setupEventListeners();
-    
+
     // Load initial data
     await loadDataAndRefresh();
 }
@@ -137,19 +162,16 @@ function updateStats() {
     // Update DOM
     document.getElementById('agent-count').textContent = agentCount;
 
-    // Format date range for hourly data - show only dates without time
+    // Format date range - uniform format for both markets
     const formatDateRange = (dateStr) => {
         if (!dateStr) return 'N/A';
-        // If the date includes time (hourly format), format date only
-        if (dateStr.includes(':')) {
-            const date = new Date(dateStr);
-            return date.toLocaleString('en-US', {
-                month: 'short',
-                day: 'numeric',
-                year: 'numeric'
-            });
-        }
-        return dateStr;
+        // Parse date string (handles both "2025-10-01" and "2025-10-01 10:00:00" formats)
+        const date = new Date(dateStr);
+        return date.toLocaleString('en-US', {
+            month: 'short',
+            day: 'numeric',
+            year: 'numeric'
+        });
     };
 
     document.getElementById('trading-period').textContent = minDate && maxDate ?
@@ -162,39 +184,37 @@ function updateStats() {
 
 // Create the main chart
 function createChart() {
-    // Destroy existing chart if any
-    if (chartInstance) {
-        chartInstance.destroy();
-        chartInstance = null;
-    }
-
     const ctx = document.getElementById('assetChart').getContext('2d');
 
     // Collect all unique dates and sort them
     const allDates = new Set();
     Object.keys(allAgentsData).forEach(agentName => {
-        const history = allAgentsData[agentName].assetHistory;
-        console.log(`Agent ${agentName}: ${history.length} data points`);
-        history.forEach(h => allDates.add(h.date));
+        allAgentsData[agentName].assetHistory.forEach(h => allDates.add(h.date));
     });
     const sortedDates = Array.from(allDates).sort();
-    console.log(`Total unique dates: ${sortedDates.length}`, sortedDates.slice(0, 10));
+
+    console.log('=== CHART DEBUG ===');
+    console.log('Total unique dates:', sortedDates.length);
+    console.log('Date range:', sortedDates[0], 'to', sortedDates[sortedDates.length - 1]);
+    console.log('Agent names:', Object.keys(allAgentsData));
 
     const datasets = Object.keys(allAgentsData).map((agentName, index) => {
         const data = allAgentsData[agentName];
         let color, borderWidth, borderDash;
-        
-        // Special styling for benchmark (QQQ or SSE 50)
-        const isBenchmark = agentName === 'QQQ' || agentName === 'SSE 50';
+
+        // Special styling for benchmarks (check if name contains 'QQQ' or 'SSE')
+        const isBenchmark = agentName.includes('QQQ') || agentName.includes('SSE');
         if (isBenchmark) {
             color = dataLoader.getAgentBrandColor(agentName) || '#ff6b00';
             borderWidth = 2;
             borderDash = [5, 5]; // Dashed line for benchmark
         } else {
-            color = agentColors[index % agentColors.length];
+            color = dataLoader.getAgentBrandColor(agentName) || agentColors[index % agentColors.length];
             borderWidth = 3;
             borderDash = [];
         }
+
+        console.log(`[DATASET ${index}] ${agentName} => COLOR: ${color}, isBenchmark: ${isBenchmark}`);
 
         // Create data points for all dates, filling missing dates with null
         const chartData = sortedDates.map(date => {
@@ -205,11 +225,19 @@ function createChart() {
             };
         });
 
-        return {
+        console.log(`Dataset ${index} (${agentName}):`, {
+            label: dataLoader.getAgentDisplayName(agentName),
+            dataPoints: chartData.filter(d => d.y !== null).length,
+            color: color,
+            isBenchmark: isBenchmark,
+            sampleData: chartData.slice(0, 3)
+        });
+
+        const datasetObj = {
             label: dataLoader.getAgentDisplayName(agentName),
             data: chartData,
             borderColor: color,
-            backgroundColor: agentName === 'QQQ' ? 'transparent' : createGradient(ctx, color),
+            backgroundColor: isBenchmark ? 'transparent' : createGradient(ctx, color),
             borderWidth: borderWidth,
             borderDash: borderDash,
             tension: 0.42, // Smooth curves for financial charts
@@ -218,12 +246,15 @@ function createChart() {
             pointHoverBackgroundColor: color,
             pointHoverBorderColor: '#fff',
             pointHoverBorderWidth: 3,
-            fill: agentName !== 'QQQ', // No fill for QQQ benchmark
-            spanGaps: true, // Connect points across gaps (null values)
+            fill: !isBenchmark, // No fill for benchmarks
             agentName: agentName,
             agentIcon: dataLoader.getAgentIcon(agentName),
             cubicInterpolationMode: 'monotone' // Smooth, monotonic interpolation
         };
+
+        console.log(`[DATASET OBJECT ${index}] borderColor: ${datasetObj.borderColor}, pointHoverBackgroundColor: ${datasetObj.pointHoverBackgroundColor}`);
+
+        return datasetObj;
     });
 
     // Create gradient for area fills
@@ -282,6 +313,21 @@ function createChart() {
         }
     };
 
+    console.log('Creating chart with', datasets.length, 'datasets');
+    console.log('Datasets summary:', datasets.map(d => ({
+        label: d.label,
+        borderColor: d.borderColor,
+        backgroundColor: typeof d.backgroundColor === 'string' ? d.backgroundColor : 'GRADIENT',
+        dataPoints: d.data.filter(p => p.y !== null).length,
+        borderWidth: d.borderWidth,
+        fill: d.fill
+    })));
+
+    // DEBUG: Log the actual Chart.js config
+    console.log('[CHART.JS CONFIG] About to create chart with datasets:', JSON.stringify(
+        datasets.map(d => ({ label: d.label, borderColor: d.borderColor }))
+    ));
+
     chartInstance = new Chart(ctx, {
         type: 'line',
         data: { datasets },
@@ -304,13 +350,8 @@ function createChart() {
                 line: {
                     borderJoinStyle: 'round',
                     borderCapStyle: 'round'
-                },
-                point: {
-                    radius: 0,
-                    hoverRadius: 7
                 }
             },
-            spanGaps: true, // Global setting to connect lines across gaps
             plugins: {
                 legend: {
                     display: false
@@ -512,16 +553,18 @@ function createLegend() {
     Object.keys(allAgentsData).forEach((agentName, index) => {
         const data = allAgentsData[agentName];
         let color, borderStyle;
-        
-        // Special styling for benchmark (QQQ or SSE 50)
-        const isBenchmark = agentName === 'QQQ' || agentName === 'SSE 50';
+
+        // Special styling for benchmarks (check if name contains 'QQQ' or 'SSE')
+        const isBenchmark = agentName.includes('QQQ') || agentName.includes('SSE');
         if (isBenchmark) {
             color = dataLoader.getAgentBrandColor(agentName) || '#ff6b00';
             borderStyle = 'dashed';
         } else {
-            color = agentColors[index % agentColors.length];
+            color = dataLoader.getAgentBrandColor(agentName) || agentColors[index % agentColors.length];
             borderStyle = 'solid';
         }
+
+        console.log(`[LEGEND ${index}] ${agentName} => COLOR: ${color}, isBenchmark: ${isBenchmark}`);
         
         const returnValue = data.return;
         const returnClass = returnValue >= 0 ? 'positive' : 'negative';
@@ -602,33 +645,29 @@ function setupEventListeners() {
     document.getElementById('toggle-log').addEventListener('click', toggleScale);
     document.getElementById('export-chart').addEventListener('click', exportData);
 
-    // Market selector buttons
+    // Market switching
     const usMarketBtn = document.getElementById('usMarketBtn');
     const cnMarketBtn = document.getElementById('cnMarketBtn');
-    
-    usMarketBtn.addEventListener('click', async () => {
-        if (dataLoader.getMarket() === 'us') return; // Already on US market
-        
-        // Switch to US market
-        usMarketBtn.classList.add('active');
-        cnMarketBtn.classList.remove('active');
-        dataLoader.setMarket('us');
-        
-        // Reload data
-        await loadDataAndRefresh();
-    });
-    
-    cnMarketBtn.addEventListener('click', async () => {
-        if (dataLoader.getMarket() === 'cn') return; // Already on CN market
-        
-        // Switch to CN market
-        cnMarketBtn.classList.add('active');
-        usMarketBtn.classList.remove('active');
-        dataLoader.setMarket('cn');
-        
-        // Reload data
-        await loadDataAndRefresh();
-    });
+
+    if (usMarketBtn && cnMarketBtn) {
+        usMarketBtn.addEventListener('click', async () => {
+            if (dataLoader.getMarket() !== 'us') {
+                dataLoader.setMarket('us');
+                usMarketBtn.classList.add('active');
+                cnMarketBtn.classList.remove('active');
+                await loadDataAndRefresh();
+            }
+        });
+
+        cnMarketBtn.addEventListener('click', async () => {
+            if (dataLoader.getMarket() !== 'cn') {
+                dataLoader.setMarket('cn');
+                cnMarketBtn.classList.add('active');
+                usMarketBtn.classList.remove('active');
+                await loadDataAndRefresh();
+            }
+        });
+    }
 
     // Scroll to top button
     const scrollBtn = document.getElementById('scrollToTop');
@@ -742,12 +781,13 @@ async function loadMoreTransactions() {
     for (let i = startIndex; i < endIndex; i++) {
         const transaction = actionFlowState.allTransactions[i];
         const agentName = transaction.agentFolder;
-        const displayName = window.configLoader.getDisplayName(agentName);
-        const icon = window.configLoader.getIcon(agentName);
+        const currentMarket = dataLoader.getMarket();
+        const displayName = window.configLoader.getDisplayName(agentName, currentMarket);
+        const icon = window.configLoader.getIcon(agentName, currentMarket);
         const actionClass = transaction.action;
 
         // Load agent's thinking
-        const thinking = await window.transactionLoader.loadAgentThinking(agentName, transaction.date);
+        const thinking = await window.transactionLoader.loadAgentThinking(agentName, transaction.date, currentMarket);
 
         const cardEl = document.createElement('div');
         cardEl.className = 'action-card';
