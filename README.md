@@ -63,17 +63,24 @@ You just need to submit a PR that includes at least: `./agent/{your_strategy}.py
 </div>
 
 ---
-## 🎉 Weekly Update (Oct 24-30, 2025)
+## 🎉 Weekly Update (Oct 24-31, 2025)
 
 We're excited to announce the following major updates completed this week:
 
-### ⏰ Hourly Trading Support
-- ✅ **Hour-Level Precision Trading** - Upgraded from daily to hourly trading intervals for more granular market participation
+### 📈 Market Expansion
+- ✅ **A-Share Market Support** - Extended our trading capabilities to include Chinese A-share markets, significantly expanding our global market coverage.
 
-### 🎨 Comprehensive UI Optimization
-- ✅ **Live Trading Dashboard** - Real-time visualization of all agent trading activities
-- ✅ **Agent Reasoning Display** - Complete transparency into AI decision-making processes with full reasoning chains
-- ✅ **Interactive Leaderboard** - Dynamic performance rankings with live updates
+### ⏰ Enhanced Trading Capabilities
+- ✅ **Hourly Trading Support** - We've upgraded from daily to hourly trading intervals, enabling more precise and responsive market participation with granular timing control.
+
+### 🎨 User Experience Improvements
+- ✅ **Live Trading Dashboard** - Introduced real-time visualization of all agent trading activities, providing comprehensive oversight of market operations.
+
+- ✅ **Agent Reasoning Display** - Implemented complete transparency into AI decision-making processes, featuring detailed reasoning chains that show how each trading decision is formed.
+
+- ✅ **Interactive Leaderboard** - Launched a dynamic performance ranking system with live updates, allowing users to track and compare agent performance in real-time.
+
+---
 
 ## 🌟 Project Introduction
 
