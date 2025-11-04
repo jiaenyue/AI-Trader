@@ -3,7 +3,7 @@ import json
 import os
 from datetime import datetime, timedelta
 from pathlib import Path
-
+from pathlib import Path as _Path
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -21,6 +21,10 @@ AGENT_REGISTRY = {
     "BaseAgent_Hour": {
         "module": "agent.base_agent.base_agent_hour",
         "class": "BaseAgent_Hour"
+    },
+    "BaseAgentAStock": {
+        "module": "agent.base_agent_astock.base_agent_astock",
+        "class": "BaseAgentAStock"
     },
 }
 
@@ -189,78 +193,88 @@ async def main(config_path=None):
         print(f"📝 Signature: {signature}")
         print(f"🔧 BaseModel: {basemodel}")
         
-        # Initialize per-signature runtime configuration
-        # Use a per-signature runtime env file that stores only TODAY_DATE and IF_TRADE
-        # Also export SIGNATURE via process env for tools that read it (but do not persist it)
-        from pathlib import Path as _Path
-        project_root = _Path(__file__).resolve().parent
-        runtime_env_dir = project_root / "data" / "agent_data" / signature
-        runtime_env_dir.mkdir(parents=True, exist_ok=True)
-        runtime_env_path = runtime_env_dir / ".runtime_env.json"
-        os.environ["RUNTIME_ENV_PATH"] = str(runtime_env_path)
-        os.environ["SIGNATURE"] = signature
-        write_config_value("TODAY_DATE", END_DATE)
-        write_config_value("IF_TRADE", False)
-        write_config_value("MARKET", market)  # Store market type for other tools
+    # Initialize runtime configuration
+    # Use the shared config file from RUNTIME_ENV_PATH in .env
+    
+    project_root = _Path(__file__).resolve().parent
+    
+    # Get log path configuration
+    log_path = log_config.get("log_path", "./data/agent_data")
+    
+    # Check position file to determine if this is a fresh start
+    position_file = project_root / log_path / signature / "position" / "position.jsonl"
+    
+    # If position file doesn't exist, reset config to start from INIT_DATE
+    if not position_file.exists():
+        # Clear the shared config file for fresh start
+        from tools.general_tools import _resolve_runtime_env_path
+        runtime_env_path = _resolve_runtime_env_path()
+        if os.path.exists(runtime_env_path):
+            os.remove(runtime_env_path)
+            print(f"🔄 Position file not found, cleared config for fresh start from {INIT_DATE}")
+    
+    # Write config values to shared config file (from .env RUNTIME_ENV_PATH)
+    write_config_value("SIGNATURE", signature)
+    write_config_value("IF_TRADE", False)
+    write_config_value("MARKET", market)
+    write_config_value("LOG_PATH", log_path)
+    
+    print(f"✅ Runtime config initialized: SIGNATURE={signature}, MARKET={market}")
 
-        # Get log path configuration
-        log_path = log_config.get("log_path", "./data/agent_data")
-        write_config_value("LOG_PATH", log_path)  # Write to runtime config
+    # Select stock symbols based on agent type and market
+    # BaseAgentAStock has its own default symbols, only set for BaseAgent
+    if agent_type == "BaseAgentAStock":
+        stock_symbols = None  # Let BaseAgentAStock use its default SSE 50
+    elif market == "cn":
+        from prompts.agent_prompt import all_sse_50_symbols
 
-        # Select stock symbols based on agent type and market
-        # BaseAgentAStock has its own default symbols, only set for BaseAgent
-        if agent_type == "BaseAgentAStock":
-            stock_symbols = None  # Let BaseAgentAStock use its default SSE 50
-        elif market == "cn":
-            from prompts.agent_prompt import all_sse_50_symbols
+        stock_symbols = all_sse_50_symbols
+    else:
+        stock_symbols = all_nasdaq_100_symbols
 
-            stock_symbols = all_sse_50_symbols
-        else:
-            stock_symbols = all_nasdaq_100_symbols
+    try:
+        # Dynamically create Agent instance
+        agent = AgentClass(
+            signature=signature,
+            basemodel=basemodel,
+            stock_symbols=stock_symbols,
+            log_path=log_path,
+            max_steps=max_steps,
+            max_retries=max_retries,
+            base_delay=base_delay,
+            initial_cash=initial_cash,
+            init_date=INIT_DATE,
+            openai_base_url=openai_base_url,
+            openai_api_key=openai_api_key
+        )
 
-        try:
-            # Dynamically create Agent instance
-            agent = AgentClass(
-                signature=signature,
-                basemodel=basemodel,
-                stock_symbols=stock_symbols,
-                log_path=log_path,
-                max_steps=max_steps,
-                max_retries=max_retries,
-                base_delay=base_delay,
-                initial_cash=initial_cash,
-                init_date=INIT_DATE,
-                openai_base_url=openai_base_url,
-                openai_api_key=openai_api_key
-            )
+        print(f"✅ {agent_type} instance created successfully: {agent}")
 
-            print(f"✅ {agent_type} instance created successfully: {agent}")
+        # Initialize MCP connection and AI model
+        await agent.initialize()
+        print("✅ Initialization successful")
+        # Run all trading days in date range
+        await agent.run_date_range(INIT_DATE, END_DATE)
 
-            # Initialize MCP connection and AI model
-            await agent.initialize()
-            print("✅ Initialization successful")
-            # Run all trading days in date range
-            await agent.run_date_range(INIT_DATE, END_DATE)
+        # Display final position summary
+        summary = agent.get_position_summary()
+        # Get currency symbol from agent's actual market (more accurate)
+        currency_symbol = "¥" if agent.market == "cn" else "$"
+        print(f"📊 Final position summary:")
+        print(f"   - Latest date: {summary.get('latest_date')}")
+        print(f"   - Total records: {summary.get('total_records')}")
+        print(f"   - Cash balance: {currency_symbol}{summary.get('positions', {}).get('CASH', 0):,.2f}")
 
-            # Display final position summary
-            summary = agent.get_position_summary()
-            # Get currency symbol from agent's actual market (more accurate)
-            currency_symbol = "¥" if agent.market == "cn" else "$"
-            print(f"📊 Final position summary:")
-            print(f"   - Latest date: {summary.get('latest_date')}")
-            print(f"   - Total records: {summary.get('total_records')}")
-            print(f"   - Cash balance: {currency_symbol}{summary.get('positions', {}).get('CASH', 0):,.2f}")
+    except Exception as e:
+        print(f"❌ Error processing model {model_name} ({signature}): {str(e)}")
+        print(f"📋 Error details: {e}")
+        # Can choose to continue processing next model, or exit
+        # continue  # Continue processing next model
+        exit()  # Or exit program
 
-        except Exception as e:
-            print(f"❌ Error processing model {model_name} ({signature}): {str(e)}")
-            print(f"📋 Error details: {e}")
-            # Can choose to continue processing next model, or exit
-            # continue  # Continue processing next model
-            exit()  # Or exit program
-
-        print("=" * 60)
-        print(f"✅ Model {model_name} ({signature}) processing completed")
-        print("=" * 60)
+    print("=" * 60)
+    print(f"✅ Model {model_name} ({signature}) processing completed")
+    print("=" * 60)
 
     print("🎉 All models processing completed!")
 
