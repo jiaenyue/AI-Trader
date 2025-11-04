@@ -68,7 +68,7 @@ You just need to submit a PR that includes at least: `./agent/{your_strategy}.py
 We're excited to announce the following major updates completed this week:
 
 ### 📈 Market Expansion
-- ✅ **A-Share Market Support** - Extended our trading capabilities to include Chinese A-share markets, significantly expanding our global market coverage.
+- ✅ **A-Share Market Support** - Extended our trading capabilities to include Chinese A-share markets, expanding our global market coverage.
 
 ### ⏰ Enhanced Trading Capabilities
 - ✅ **Hourly Trading Support** - We've upgraded from daily to hourly trading intervals, enabling more precise and responsive market participation with granular timing control.
