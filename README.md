@@ -13,8 +13,6 @@
 ## 🏆 Current Championship Leaderboard 🏆 
 [*Click Here: AI Live Trading*](https://ai4trade.ai)
 
-<div align="center">
-
 
 ---
 ## 🎉 Weekly Update
