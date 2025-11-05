@@ -20,22 +20,24 @@ def get_market_type() -> str:
     """
     智能获取市场类型，支持多种检测方式：
     1. 优先从配置中读取 MARKET
-    2. 如果未设置，则根据 LOG_PATH 推断（agent_data_astock -> cn, agent_data -> us）
+    2. 如果未设置，则根据 LOG_PATH 推断（agent_data_astock -> cn, agent_data_crypto -> crypto, agent_data -> us）
     3. 最后默认为 us
-    
+
     Returns:
-        "cn" for A-shares market, "us" for US market
+        "cn" for A-shares market, "us" for US market, "crypto" for cryptocurrency market
     """
     # 方式1: 从配置读取
     market = get_config_value("MARKET", None)
-    if market in ["cn", "us"]:
+    if market in ["cn", "us", "crypto"]:
         return market
-    
+
     # 方式2: 根据 LOG_PATH 推断
     log_path = get_config_value("LOG_PATH", "./data/agent_data")
     if "astock" in log_path.lower() or "a_stock" in log_path.lower():
         return "cn"
-    
+    elif "crypto" in log_path.lower():
+        return "crypto"
+
     # 方式3: 默认为美股
     return "us"
 
@@ -202,7 +204,7 @@ def get_merged_file_path(market: str = "us") -> Path:
     """Get merged.jsonl path based on market type.
 
     Args:
-        market: Market type, "us" for US stocks or "cn" for A-shares
+        market: Market type, "us" for US stocks, "cn" for A-shares, "crypto" for cryptocurrencies
 
     Returns:
         Path object pointing to the merged.jsonl file
@@ -210,6 +212,8 @@ def get_merged_file_path(market: str = "us") -> Path:
     base_dir = Path(__file__).resolve().parents[1]
     if market == "cn":
         return base_dir / "data" / "A_stock" / "merged.jsonl"
+    elif market == "crypto":
+        return base_dir / "data" / "crypto" / "crypto_merged.jsonl"
     else:
         return base_dir / "data" / "merged.jsonl"
 
@@ -219,11 +223,15 @@ def is_trading_day(date: str, market: str = "us") -> bool:
 
     Args:
         date: Date string in "YYYY-MM-DD" format
-        market: Market type ("us" or "cn")
+        market: Market type ("us", "cn", or "crypto")
 
     Returns:
         True if the date exists in merged.jsonl (is a trading day), False otherwise
     """
+    # MVP assumption: crypto trades every day
+    if market == "crypto":
+        return True
+
     merged_file_path = get_merged_file_path(market)
 
     if not merged_file_path.exists():

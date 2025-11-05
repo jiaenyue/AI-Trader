@@ -82,17 +82,44 @@ def buy(symbol: str, amount: int) -> Dict[str, Any]:
     today_date = get_config_value("TODAY_DATE")
 
     # Auto-detect market type based on symbol format
-    market = "cn" if symbol.endswith((".SH", ".SZ")) else "us"
+    if symbol.endswith((".SH", ".SZ")):
+        market = "cn"
+    elif symbol.endswith("-USDT"):
+        market = "crypto"
+    else:
+        market = "us"
 
-    # 🇨🇳 Chinese A-shares trading rule: Must trade in lots of 100 shares (一手 = 100股)
-    if market == "cn" and amount % 100 != 0:
-        return {
-            "error": f"Chinese A-shares must be traded in multiples of 100 shares (1 lot = 100 shares). You tried to buy {amount} shares.",
-            "symbol": symbol,
-            "amount": amount,
-            "date": today_date,
-            "suggestion": f"Please use {(amount // 100) * 100} or {((amount // 100) + 1) * 100} shares instead.",
-        }
+    # Amount validation based on market type
+    if market == "crypto":
+        # Crypto allows decimal trading
+        amount = float(amount)  # Convert to float to allow decimals
+        if amount <= 0:
+            return {
+                "error": f"Amount must be positive. You tried to buy {amount} units.",
+                "symbol": symbol,
+                "amount": amount,
+                "date": today_date,
+            }
+    else:
+        # Stocks trade in whole numbers
+        amount = int(amount)  # Convert to int for stocks
+        if amount <= 0:
+            return {
+                "error": f"Amount must be positive. You tried to buy {amount} shares.",
+                "symbol": symbol,
+                "amount": amount,
+                "date": today_date,
+            }
+
+        # 🇨🇳 Chinese A-shares trading rule: Must trade in lots of 100 shares (一手 = 100股)
+        if market == "cn" and amount % 100 != 0:
+            return {
+                "error": f"Chinese A-shares must be traded in multiples of 100 shares (1 lot = 100 shares). You tried to buy {amount} shares.",
+                "symbol": symbol,
+                "amount": amount,
+                "date": today_date,
+                "suggestion": f"Please use {(amount // 100) * 100} or {((amount // 100) + 1) * 100} shares instead.",
+            }
 
     # Step 2: Get current latest position and operation ID
     # get_latest_position returns two values: position dictionary and current maximum operation ID
@@ -255,17 +282,44 @@ def sell(symbol: str, amount: int) -> Dict[str, Any]:
     today_date = get_config_value("TODAY_DATE")
 
     # Auto-detect market type based on symbol format
-    market = "cn" if symbol.endswith((".SH", ".SZ")) else "us"
+    if symbol.endswith((".SH", ".SZ")):
+        market = "cn"
+    elif symbol.endswith("-USDT"):
+        market = "crypto"
+    else:
+        market = "us"
 
-    # 🇨🇳 Chinese A-shares trading rule: Must trade in lots of 100 shares (一手 = 100股)
-    if market == "cn" and amount % 100 != 0:
-        return {
-            "error": f"Chinese A-shares must be traded in multiples of 100 shares (1 lot = 100 shares). You tried to sell {amount} shares.",
-            "symbol": symbol,
-            "amount": amount,
-            "date": today_date,
-            "suggestion": f"Please use {(amount // 100) * 100} or {((amount // 100) + 1) * 100} shares instead.",
-        }
+    # Amount validation based on market type
+    if market == "crypto":
+        # Crypto allows decimal trading
+        amount = float(amount)  # Convert to float to allow decimals
+        if amount <= 0:
+            return {
+                "error": f"Amount must be positive. You tried to sell {amount} units.",
+                "symbol": symbol,
+                "amount": amount,
+                "date": today_date,
+            }
+    else:
+        # Stocks trade in whole numbers
+        amount = int(amount)  # Convert to int for stocks
+        if amount <= 0:
+            return {
+                "error": f"Amount must be positive. You tried to sell {amount} shares.",
+                "symbol": symbol,
+                "amount": amount,
+                "date": today_date,
+            }
+
+        # 🇨🇳 Chinese A-shares trading rule: Must trade in lots of 100 shares (一手 = 100股)
+        if market == "cn" and amount % 100 != 0:
+            return {
+                "error": f"Chinese A-shares must be traded in multiples of 100 shares (1 lot = 100 shares). You tried to sell {amount} shares.",
+                "symbol": symbol,
+                "amount": amount,
+                "date": today_date,
+                "suggestion": f"Please use {(amount // 100) * 100} or {((amount // 100) + 1) * 100} shares instead.",
+            }
 
     # Step 2: Get current latest position and operation ID
     # get_latest_position returns two values: position dictionary and current maximum operation ID
