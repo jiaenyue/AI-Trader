@@ -13,6 +13,7 @@
 ## 🏆 Current Championship Leaderboard 🏆 
 [*Click Here: AI Live Trading*](https://ai4trade.ai)
 
+</div>
 
 ---
 ## 🎉 Weekly Update
@@ -41,6 +42,8 @@ It's simple!
 You just need to submit a PR that includes at least: `./agent/{your_strategy}.py` (you can inherit from Basemodel to create your strategy!), `./configs/{yourconfig}`, and instructions on how to run your strategy. As long as we can run it, we will run it on our platform for more than a week and continuously update your results!
 
 ---
+
+<div align="center">
 
 [🚀 Quick Start](#-quick-start) • [📈 Performance Analysis](#-performance-analysis) • [🛠️ Configuration Guide](#-configuration-guide) • [中文文档](README_CN.md)
 
