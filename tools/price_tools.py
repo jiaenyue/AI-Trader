@@ -676,15 +676,24 @@ def get_today_init_position(today_date: str, signature: str) -> Dict[str, float]
         {symbol: weight} 的字典；若未找到对应日期，则返回空字典。
     """
     from tools.general_tools import get_config_value
+    import os
 
     base_dir = Path(__file__).resolve().parents[1]
 
     # Get log_path from config, default to "agent_data" for backward compatibility
     log_path = get_config_value("LOG_PATH", "./data/agent_data")
-    if log_path.startswith("./data/"):
-        log_path = log_path[7:]  # Remove "./data/" prefix
 
-    position_file = base_dir / "data" / log_path / signature / "position" / "position.jsonl"
+    # Handle different path formats:
+    # - If it's an absolute path (like temp directory), use it directly
+    # - If it's a relative path starting with "./data/", remove the prefix and prepend base_dir/data
+    # - Otherwise, treat as relative to base_dir/data
+    if os.path.isabs(log_path):
+        # Absolute path (like temp directory) - use directly
+        position_file = Path(log_path) / signature / "position" / "position.jsonl"
+    else:
+        if log_path.startswith("./data/"):
+            log_path = log_path[7:]  # Remove "./data/" prefix
+        position_file = base_dir / "data" / log_path / signature / "position" / "position.jsonl"
 #     position_file = base_dir / "data" / "agent_data" / signature / "position" / "position.jsonl"
 
     if not position_file.exists():
@@ -736,15 +745,24 @@ def get_latest_position(today_date: str, signature: str) -> Tuple[Dict[str, floa
           - max_id: 选中记录的最大 id；若未找到任何记录，则为 -1.
     """
     from tools.general_tools import get_config_value
+    import os
 
     base_dir = Path(__file__).resolve().parents[1]
 
     # Get log_path from config, default to "agent_data" for backward compatibility
     log_path = get_config_value("LOG_PATH", "./data/agent_data")
-    if log_path.startswith("./data/"):
-        log_path = log_path[7:]  # Remove "./data/" prefix
 
-    position_file = base_dir / "data" / log_path / signature / "position" / "position.jsonl"
+    # Handle different path formats:
+    # - If it's an absolute path (like temp directory), use it directly
+    # - If it's a relative path starting with "./data/", remove the prefix and prepend base_dir/data
+    # - Otherwise, treat as relative to base_dir/data
+    if os.path.isabs(log_path):
+        # Absolute path (like temp directory) - use directly
+        position_file = Path(log_path) / signature / "position" / "position.jsonl"
+    else:
+        if log_path.startswith("./data/"):
+            log_path = log_path[7:]  # Remove "./data/" prefix
+        position_file = base_dir / "data" / log_path / signature / "position" / "position.jsonl"
 
     if not position_file.exists():
         return {}, -1
@@ -836,15 +854,24 @@ def add_no_trade_record(today_date: str, signature: str):
     save_item["positions"] = current_position
 
     from tools.general_tools import get_config_value
+    import os
 
     base_dir = Path(__file__).resolve().parents[1]
 
     # Get log_path from config, default to "agent_data" for backward compatibility
     log_path = get_config_value("LOG_PATH", "./data/agent_data")
-    if log_path.startswith("./data/"):
-        log_path = log_path[7:]  # Remove "./data/" prefix
 
-    position_file = base_dir / "data" / log_path / signature / "position" / "position.jsonl"
+    # Handle different path formats:
+    # - If it's an absolute path (like temp directory), use it directly
+    # - If it's a relative path starting with "./data/", remove the prefix and prepend base_dir/data
+    # - Otherwise, treat as relative to base_dir/data
+    if os.path.isabs(log_path):
+        # Absolute path (like temp directory) - use directly
+        position_file = Path(log_path) / signature / "position" / "position.jsonl"
+    else:
+        if log_path.startswith("./data/"):
+            log_path = log_path[7:]  # Remove "./data/" prefix
+        position_file = base_dir / "data" / log_path / signature / "position" / "position.jsonl"
 
     with position_file.open("a", encoding="utf-8") as f:
         f.write(json.dumps(save_item) + "\n")
