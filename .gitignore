@@ -108,3 +108,8 @@ dmypy.json
 CLAUDE.md
 plan.md
 design.md
+deprecated/
+*_SUCCESS.md
+test_*.py
+*.backup
+/data/*_test_agent/
