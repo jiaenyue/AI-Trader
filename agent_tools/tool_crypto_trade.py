@@ -18,7 +18,7 @@ from tools.price_tools import (get_latest_position, get_open_prices,
                                get_yesterday_open_and_close_price,
                                get_yesterday_profit)
 
-mcp = FastMCP("TradeTools")
+mcp = FastMCP("CryptoTradeTools")
 
 def _position_lock(signature: str):
     """Context manager for file-based lock to serialize position updates per signature."""
@@ -42,35 +42,32 @@ def _position_lock(signature: str):
 
 
 @mcp.tool()
-def buy(symbol: str, amount: int) -> Dict[str, Any]:
+def buy_crypto(symbol: str, amount: float) -> Dict[str, Any]:
     """
-    Buy stock function
+    Buy cryptocurrency function
 
-    This function simulates stock buying operations, including the following steps:
+    This function simulates cryptocurrency buying operations, including the following steps:
     1. Get current position and operation ID
-    2. Get stock opening price for the day
-    3. Validate buy conditions (sufficient cash, lot size for CN market)
-    4. Update position (increase stock quantity, decrease cash)
+    2. Get cryptocurrency opening price for the day
+    3. Validate buy conditions (sufficient cash)
+    4. Update position (increase crypto quantity, decrease cash)
     5. Record transaction to position.jsonl file
 
     Args:
-        symbol: Stock symbol, such as "AAPL", "MSFT", etc.
-        amount: Buy quantity, must be a positive integer, indicating how many shares to buy
-                For Chinese A-shares (symbols ending with .SH or .SZ), must be multiples of 100
+        symbol: Cryptocurrency symbol, such as "BTC-USDT", "ETH-USDT", etc.
+        amount: Buy quantity, must be a positive float, indicating how many units to buy
 
     Returns:
         Dict[str, Any]:
-          - Success: Returns new position dictionary (containing stock quantity and cash balance)
+          - Success: Returns new position dictionary (containing crypto quantity and cash balance)
           - Failure: Returns {"error": error message, ...} dictionary
 
     Raises:
         ValueError: Raised when SIGNATURE environment variable is not set
 
     Example:
-        >>> result = buy("AAPL", 10)
-        >>> print(result)  # {"AAPL": 110, "MSFT": 5, "CASH": 5000.0, ...}
-        >>> result = buy("600519.SH", 100)  # Chinese A-shares must be multiples of 100
-        >>> print(result)  # {"600519.SH": 100, "CASH": 85000.0, ...}
+        >>> result = buy_crypto("BTC-USDT", 0.05)
+        >>> print(result)  # {"BTC-USDT": 0.05, "ETH-USDT": 1.2, "CASH": 5000.0, ...}
     """
     # Step 1: Get environment variables and basic information
     # Get signature (model name) from environment variable, used to determine data storage path
@@ -81,38 +78,25 @@ def buy(symbol: str, amount: int) -> Dict[str, Any]:
     # Get current trading date from environment variable
     today_date = get_config_value("TODAY_DATE")
 
-    # Auto-detect market type based on symbol format
-    if symbol.endswith((".SH", ".SZ")):
-        market = "cn"
-    else:
-        market = "us"
+    # Fixed market type for crypto
+    market = "crypto"
 
-    # Amount validation for stocks
+    # Amount validation for Crypto
     try:
-        amount = int(amount)  # Convert to int for stocks
+        amount = float(amount)  # Convert to float to allow decimals
     except ValueError:
         return {
-            "error": f"Invalid amount format. Amount must be an integer for stock trading. You provided: {amount}",
+            "error": f"Invalid amount format. Amount must be a number. You provided: {amount}",
             "symbol": symbol,
             "date": today_date,
         }
 
     if amount <= 0:
         return {
-            "error": f"Amount must be positive. You tried to buy {amount} shares.",
+            "error": f"Amount must be positive. You tried to buy {amount} units.",
             "symbol": symbol,
             "amount": amount,
             "date": today_date,
-        }
-
-    # 🇨🇳 Chinese A-shares trading rule: Must trade in lots of 100 shares (一手 = 100股)
-    if market == "cn" and amount % 100 != 0:
-        return {
-            "error": f"Chinese A-shares must be traded in multiples of 100 shares (1 lot = 100 shares). You tried to buy {amount} shares.",
-            "symbol": symbol,
-            "amount": amount,
-            "date": today_date,
-            "suggestion": f"Please use {(amount // 100) * 100} or {((amount // 100) + 1) * 100} shares instead.",
         }
 
     # Step 2: Get current latest position and operation ID
@@ -126,13 +110,13 @@ def buy(symbol: str, amount: int) -> Dict[str, Any]:
             print(e)
             print(today_date, signature)
             return {"error": f"Failed to load latest position: {e}", "symbol": symbol, "date": today_date}
-    # Step 3: Get stock opening price for the day
-    # Use get_open_prices function to get the opening price of specified stock for the day
-    # If stock symbol does not exist or price data is missing, KeyError exception will be raised
+    # Step 3: Get cryptocurrency opening price for the day
+    # Use get_open_prices function to get the opening price of specified crypto for the day
+    # If crypto symbol does not exist or price data is missing, KeyError exception will be raised
     try:
         this_symbol_price = get_open_prices(today_date, [symbol], market=market)[f"{symbol}_price"]
     except KeyError:
-        # Stock symbol does not exist or price data is missing, return error message
+        # Crypto symbol does not exist or price data is missing, return error message
         return {
             "error": f"Symbol {symbol} not found! This action will not be allowed.",
             "symbol": symbol,
@@ -140,7 +124,7 @@ def buy(symbol: str, amount: int) -> Dict[str, Any]:
         }
 
     # Step 4: Validate buy conditions
-    # Calculate cash required for purchase: stock price × buy quantity
+    # Calculate cash required for purchase: crypto price × buy quantity
     try:
         cash_left = current_position["CASH"] - this_symbol_price * amount
     except Exception as e:
@@ -164,7 +148,7 @@ def buy(symbol: str, amount: int) -> Dict[str, Any]:
         # Decrease cash balance
         new_position["CASH"] = cash_left
 
-        # Increase stock position quantity
+        # Increase crypto position quantity
         new_position[symbol] += amount
 
         # Step 6: Record transaction to position.jsonl file
@@ -178,14 +162,14 @@ def buy(symbol: str, amount: int) -> Dict[str, Any]:
         with open(position_file_path, "a") as f:
             # Write JSON format transaction record, containing date, operation ID, transaction details and updated position
             print(
-                f"Writing to position.jsonl: {json.dumps({'date': today_date, 'id': current_action_id + 1, 'this_action':{'action':'buy','symbol':symbol,'amount':amount},'positions': new_position})}"
+                f"Writing to position.jsonl: {json.dumps({'date': today_date, 'id': current_action_id + 1, 'this_action':{'action':'buy_crypto','symbol':symbol,'amount':amount},'positions': new_position})}"
             )
             f.write(
                 json.dumps(
                     {
                         "date": today_date,
                         "id": current_action_id + 1,
-                        "this_action": {"action": "buy", "symbol": symbol, "amount": amount},
+                        "this_action": {"action": "buy_crypto", "symbol": symbol, "amount": amount},
                         "positions": new_position,
                     }
                 )
@@ -197,74 +181,33 @@ def buy(symbol: str, amount: int) -> Dict[str, Any]:
         return new_position
 
 
-def _get_today_buy_amount(symbol: str, today_date: str, signature: str) -> int:
-    """
-    Helper function to get the total amount bought today for T+1 restriction check
-
-    Args:
-        symbol: Stock symbol
-        today_date: Trading date
-        signature: Model signature
-
-    Returns:
-        Total shares bought today
-    """
-    log_path = get_config_value("LOG_PATH", "./data/agent_data")
-    if log_path.startswith("./data/"):
-        log_path = log_path[7:]  # Remove "./data/" prefix
-    position_file_path = os.path.join(project_root, "data", log_path, signature, "position", "position.jsonl")
-
-    if not os.path.exists(position_file_path):
-        return 0
-
-    total_bought_today = 0
-    with open(position_file_path, "r") as f:
-        for line in f:
-            if not line.strip():
-                continue
-            try:
-                record = json.loads(line)
-                if record.get("date") == today_date:
-                    this_action = record.get("this_action", {})
-                    if this_action.get("action") == "buy" and this_action.get("symbol") == symbol:
-                        total_bought_today += this_action.get("amount", 0)
-            except Exception:
-                continue
-
-    return total_bought_today
-
-
 @mcp.tool()
-def sell(symbol: str, amount: int) -> Dict[str, Any]:
+def sell_crypto(symbol: str, amount: float) -> Dict[str, Any]:
     """
-    Sell stock function
+    Sell cryptocurrency function
 
-    This function simulates stock selling operations, including the following steps:
+    This function simulates cryptocurrency selling operations, including the following steps:
     1. Get current position and operation ID
-    2. Get stock opening price for the day
-    3. Validate sell conditions (position exists, sufficient quantity, lot size, T+1 for CN market)
-    4. Update position (decrease stock quantity, increase cash)
+    2. Get cryptocurrency opening price for the day
+    3. Validate sell conditions (position exists, sufficient quantity)
+    4. Update position (decrease crypto quantity, increase cash)
     5. Record transaction to position.jsonl file
 
     Args:
-        symbol: Stock symbol, such as "AAPL", "MSFT", etc.
-        amount: Sell quantity, must be a positive integer, indicating how many shares to sell
-                For Chinese A-shares (symbols ending with .SH or .SZ), must be multiples of 100
-                and cannot sell shares bought on the same day (T+1 rule)
+        symbol: Cryptocurrency symbol, such as "BTC-USDT", "ETH-USDT", etc.
+        amount: Sell quantity, must be a positive float, indicating how many units to sell
 
     Returns:
         Dict[str, Any]:
-          - Success: Returns new position dictionary (containing stock quantity and cash balance)
+          - Success: Returns new position dictionary (containing crypto quantity and cash balance)
           - Failure: Returns {"error": error message, ...} dictionary
 
     Raises:
         ValueError: Raised when SIGNATURE environment variable is not set
 
     Example:
-        >>> result = sell("AAPL", 10)
-        >>> print(result)  # {"AAPL": 90, "MSFT": 5, "CASH": 15000.0, ...}
-        >>> result = sell("600519.SH", 100)  # Chinese A-shares must be multiples of 100
-        >>> print(result)  # {"600519.SH": 0, "CASH": 115000.0, ...}
+        >>> result = sell_crypto("BTC-USDT", 0.05)
+        >>> print(result)  # {"BTC-USDT": 0.0, "ETH-USDT": 1.2, "CASH": 15000.0, ...}
     """
     # Step 1: Get environment variables and basic information
     # Get signature (model name) from environment variable, used to determine data storage path
@@ -275,38 +218,25 @@ def sell(symbol: str, amount: int) -> Dict[str, Any]:
     # Get current trading date from environment variable
     today_date = get_config_value("TODAY_DATE")
 
-    # Auto-detect market type based on symbol format
-    if symbol.endswith((".SH", ".SZ")):
-        market = "cn"
-    else:
-        market = "us"
+    # Fixed market type for crypto
+    market = "crypto"
 
-    # Amount validation for stocks
+    # Amount validation for Crypto
     try:
-        amount = int(amount)  # Convert to int for stocks
+        amount = float(amount)  # Convert to float to allow decimals
     except ValueError:
         return {
-            "error": f"Invalid amount format. Amount must be an integer for stock trading. You provided: {amount}",
+            "error": f"Invalid amount format. Amount must be a number. You provided: {amount}",
             "symbol": symbol,
             "date": today_date,
         }
 
     if amount <= 0:
         return {
-            "error": f"Amount must be positive. You tried to sell {amount} shares.",
+            "error": f"Amount must be positive. You tried to sell {amount} units.",
             "symbol": symbol,
             "amount": amount,
             "date": today_date,
-        }
-
-    # 🇨🇳 Chinese A-shares trading rule: Must trade in lots of 100 shares (一手 = 100股)
-    if market == "cn" and amount % 100 != 0:
-        return {
-            "error": f"Chinese A-shares must be traded in multiples of 100 shares (1 lot = 100 shares). You tried to sell {amount} shares.",
-            "symbol": symbol,
-            "amount": amount,
-            "date": today_date,
-            "suggestion": f"Please use {(amount // 100) * 100} or {((amount // 100) + 1) * 100} shares instead.",
         }
 
     # Step 2: Get current latest position and operation ID
@@ -314,13 +244,13 @@ def sell(symbol: str, amount: int) -> Dict[str, Any]:
     # This ID is used to ensure each operation has a unique identifier
     current_position, current_action_id = get_latest_position(today_date, signature)
 
-    # Step 3: Get stock opening price for the day
-    # Use get_open_prices function to get the opening price of specified stock for the day
-    # If stock symbol does not exist or price data is missing, KeyError exception will be raised
+    # Step 3: Get cryptocurrency opening price for the day
+    # Use get_open_prices function to get the opening price of specified crypto for the day
+    # If crypto symbol does not exist or price data is missing, KeyError exception will be raised
     try:
         this_symbol_price = get_open_prices(today_date, [symbol], market=market)[f"{symbol}_price"]
     except KeyError:
-        # Stock symbol does not exist or price data is missing, return error message
+        # Crypto symbol does not exist or price data is missing, return error message
         return {
             "error": f"Symbol {symbol} not found! This action will not be allowed.",
             "symbol": symbol,
@@ -328,7 +258,7 @@ def sell(symbol: str, amount: int) -> Dict[str, Any]:
         }
 
     # Step 4: Validate sell conditions
-    # Check if holding this stock
+    # Check if holding this crypto
     if symbol not in current_position:
         return {
             "error": f"No position for {symbol}! This action will not be allowed.",
@@ -339,35 +269,18 @@ def sell(symbol: str, amount: int) -> Dict[str, Any]:
     # Check if position quantity is sufficient for selling
     if current_position[symbol] < amount:
         return {
-            "error": "Insufficient shares! This action will not be allowed.",
+            "error": "Insufficient crypto! This action will not be allowed.",
             "have": current_position.get(symbol, 0),
             "want_to_sell": amount,
             "symbol": symbol,
             "date": today_date,
         }
 
-    # 🇨🇳 Chinese A-shares T+1 trading rule: Cannot sell shares bought on the same day
-    if market == "cn":
-        bought_today = _get_today_buy_amount(symbol, today_date, signature)
-        if bought_today > 0:
-            # Calculate sellable quantity (total position - bought today)
-            sellable_amount = current_position[symbol] - bought_today
-            if amount > sellable_amount:
-                return {
-                    "error": f"T+1 restriction violated! You bought {bought_today} shares of {symbol} today and cannot sell them until tomorrow.",
-                    "symbol": symbol,
-                    "total_position": current_position[symbol],
-                    "bought_today": bought_today,
-                    "sellable_today": max(0, sellable_amount),
-                    "want_to_sell": amount,
-                    "date": today_date,
-                }
-
     # Step 5: Execute sell operation, update position
     # Create a copy of current position to avoid directly modifying original data
     new_position = current_position.copy()
 
-    # Decrease stock position quantity
+    # Decrease crypto position quantity
     new_position[symbol] -= amount
 
     # Increase cash balance: sell price × sell quantity
@@ -385,14 +298,14 @@ def sell(symbol: str, amount: int) -> Dict[str, Any]:
     with open(position_file_path, "a") as f:
         # Write JSON format transaction record, containing date, operation ID and updated position
         print(
-            f"Writing to position.jsonl: {json.dumps({'date': today_date, 'id': current_action_id + 1, 'this_action':{'action':'sell','symbol':symbol,'amount':amount},'positions': new_position})}"
+            f"Writing to position.jsonl: {json.dumps({'date': today_date, 'id': current_action_id + 1, 'this_action':{'action':'sell_crypto','symbol':symbol,'amount':amount},'positions': new_position})}"
         )
         f.write(
             json.dumps(
                 {
                     "date": today_date,
                     "id": current_action_id + 1,
-                    "this_action": {"action": "sell", "symbol": symbol, "amount": amount},
+                    "this_action": {"action": "sell_crypto", "symbol": symbol, "amount": amount},
                     "positions": new_position,
                 }
             )
@@ -405,9 +318,9 @@ def sell(symbol: str, amount: int) -> Dict[str, Any]:
 
 
 if __name__ == "__main__":
-    # new_result = buy("AAPL", 1)
+    # new_result = buy_crypto("BTC-USDT", 0.05)
     # print(new_result)
-    # new_result = sell("AAPL", 1)
+    # new_result = sell_crypto("BTC-USDT", 0.05)
     # print(new_result)
-    port = int(os.getenv("TRADE_HTTP_PORT", "8002"))
+    port = int(os.getenv("CRYPTO_HTTP_PORT", "8014"))
     mcp.run(transport="streamable-http", port=port)
