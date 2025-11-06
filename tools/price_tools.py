@@ -244,9 +244,18 @@ def is_trading_day(date: str, market: str = "us") -> bool:
             for line in f:
                 try:
                     data = json.loads(line.strip())
+                    # Check for daily time series first
                     time_series = data.get("Time Series (Daily)", {})
                     if date in time_series:
                         return True
+
+                    # If no daily data, check for hourly data (e.g., "Time Series (60min)")
+                    for key, value in data.items():
+                        if key.startswith("Time Series") and isinstance(value, dict):
+                            # Check if any hourly timestamp starts with the date
+                            for timestamp in value.keys():
+                                if timestamp.startswith(date):
+                                    return True
                 except json.JSONDecodeError:
                     continue
             # If we get here, checked all stocks and date was not found in any
