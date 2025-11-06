@@ -191,23 +191,23 @@ class BaseAgentCrypto:
         self.position_file = os.path.join(self.data_path, "position", "position.jsonl")
 
     def _get_default_mcp_config(self) -> Dict[str, Dict[str, Any]]:
-        """Get default MCP configuration"""
+        """Get default MCP configuration for crypto trading"""
         return {
             "math": {
                 "transport": "streamable_http",
                 "url": f"http://localhost:{os.getenv('MATH_HTTP_PORT', '8000')}/mcp",
             },
-            "stock_local": {
+            "search": {
+                "transport": "streamable_http",
+                "url": f"http://localhost:{os.getenv('SEARCH_HTTP_PORT', '8001')}/mcp",
+            },
+            "price": {
                 "transport": "streamable_http",
                 "url": f"http://localhost:{os.getenv('GETPRICE_HTTP_PORT', '8003')}/mcp",
             },
-            "search": {
-                "transport": "streamable_http",
-                "url": f"http://localhost:{os.getenv('SEARCH_HTTP_PORT', '8004')}/mcp",
-            },
             "trade": {
                 "transport": "streamable_http",
-                "url": f"http://localhost:{os.getenv('TRADE_HTTP_PORT', '8002')}/mcp",
+                "url": f"http://localhost:{os.getenv('CRYPTO_HTTP_PORT', '8005')}/mcp",
             },
         }
 
@@ -225,6 +225,7 @@ class BaseAgentCrypto:
 
         try:
             # Create MCP client
+            # print(f"🔧 MCP configuration: {self.mcp_config}")
             self.client = MultiServerMCPClient(self.mcp_config)
 
             # Get tools
