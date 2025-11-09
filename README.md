@@ -2,7 +2,7 @@
 
 <div align="center">
   <picture>
-      <img src="./assets/AI-Trader-log.png" width="25%" style="border: none; box-shadow: none;">
+      <img src="./assets/AI-Trader-log.png" width="30%" style="border: none; box-shadow: none;">
   </picture>
 </div >
 
