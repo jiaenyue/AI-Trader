@@ -2,8 +2,8 @@
   "agent_type": "BaseAgentCrypto",
   "market": "crypto",
   "date_range": {
-    "init_date": "2025-10-20",
-    "end_date": "2025-10-22"
+    "init_date": "2025-10-01",
+    "end_date": "2025-10-31"
   },
   "models": [
     {
