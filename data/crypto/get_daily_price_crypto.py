@@ -95,7 +95,11 @@ def get_crypto_daily_price(symbol: str, market: str = "USD"):
         standard_data = convert_crypto_to_standard_format(data, symbol)
 
         # Save with same naming convention as stocks
-        filename = f"./coin/daily_prices_{symbol}.json"
+        # Ensure the 'coin' folder exists relative to this script's directory
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        coin_dir = os.path.join(current_dir, "coin")
+        os.makedirs(coin_dir, exist_ok=True)
+        filename = f"{coin_dir}/daily_prices_{symbol}.json"
         with open(filename, "w", encoding="utf-8") as f:
             json.dump(standard_data, f, ensure_ascii=False, indent=4)
 

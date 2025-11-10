@@ -121,9 +121,10 @@ def verify_symbol_fixes():
 
 # Merge all crypto daily price JSON files, write one line per file to crypto_merged.jsonl
 current_dir = os.path.dirname(__file__)
+assert (Path(current_dir) / "coin").exists(), "coin/ directory not found!"
 pattern = os.path.join(current_dir, "coin", "daily_prices_*.json")
 files = sorted(glob.glob(pattern))
-
+assert files, "No crypto daily price files found to merge!"
 output_file = os.path.join(current_dir, "crypto_merged.jsonl")
 
 print(f"Found {len(files)} crypto files to merge")

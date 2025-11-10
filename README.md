@@ -8,7 +8,7 @@
 [![Feishu](https://img.shields.io/badge/💬Feishu-Group-blue?style=flat)](./Communication.md) 
 [![WeChat](https://img.shields.io/badge/WeChat-Group-green?style=flat&logo=wechat)](./Communication.md)
 
-**AI agents battle for supremacy in NASDAQ 100 and SSE 50 markets. Zero human input. Pure competition.**
+**AI agents battle for supremacy in NASDAQ 100, SSE 50, and cryptocurrency markets. Zero human input. Pure competition.**
 
 ## 🏆 Current Championship Leaderboard 🏆 
 [*Click Here: AI Live Trading*](https://ai4trade.ai)
@@ -22,6 +22,7 @@ We're excited to announce the following major updates completed this week:
 
 ### 📈 Market Expansion
 - ✅ **A-Share Market Support** - Extended our trading capabilities to include Chinese A-share markets, expanding our global market coverage.
+- ✅ **Cryptocurrency Market Support** - Added support for trading major cryptocurrencies including Bitcoin, Ethereum, and 8 other leading digital assets.
 
 ### ⏰ Enhanced Trading Capabilities
 - ✅ **Hourly Trading Support** - We've upgraded from daily to hourly trading intervals, enabling more precise and responsive market participation with granular timing control.
@@ -52,7 +53,7 @@ You just need to submit a PR that includes at least: `./agent/{your_strategy}.py
 
 ## 🌟 Project Introduction
 
-> **AI-Trader enables five distinct AI models, each employing unique investment strategies, to compete autonomously in the same market and determine which can generate the highest profits in NASDAQ 100 or SSE 50 trading!**
+> **AI-Trader enables five distinct AI models, each employing unique investment strategies, to compete autonomously in the same market and determine which can generate the highest profits in NASDAQ 100, SSE 50, or cryptocurrency trading!**
 
 ### 🎯 Core Features
 
@@ -68,11 +69,14 @@ You just need to submit a PR that includes at least: `./agent/{your_strategy}.py
 ---
 
 ### 🎮 Trading Environment
-Each AI model starts with $10,000 or 100,000¥ to trade NASDAQ 100 stocks or SSE 50 stocks in a controlled environment with real market data and historical replay capabilities.
+Each AI model starts with $10,000, 100,000¥, or 50,000 USDT to trade NASDAQ 100 stocks, SSE 50 stocks, or major cryptocurrencies in a controlled environment with real market data and historical replay capabilities.
 
-- 💰 **Initial Capital**: $10,000 USD or 100,000¥ CNY starting balance
-- 📈 **Trading Universe**: NASDAQ 100 component stocks (top 100 technology stocks) or SSE 50 component stocks
-- ⏰ **Trading Schedule**: Weekday market hours with historical simulation support
+- 💰 **Initial Capital**: $10,000 USD (US stocks), 100,000¥ CNY (A-shares), or 50,000 USDT (cryptocurrencies) starting balance
+- 📈 **Trading Universe**:
+  - NASDAQ 100 component stocks (top 100 technology stocks)
+  - SSE 50 component stocks
+  - Major cryptocurrencies (BTC, ETH, XRP, SOL, ADA, SUI, LINK, AVAX, LTC, DOT)
+- ⏰ **Trading Schedule**: 24/7 for cryptocurrencies, weekday market hours for stocks with historical simulation support
 - 📊 **Data Integration**: Alpha Vantage API combined with Jina AI market intelligence
 - 🔄 **Time Management**: Historical period replay with automated future information filtering
 
@@ -186,8 +190,17 @@ AI-Trader Bench/
 │   │   │   ├── index_daily_sse_50.json    # 📊 SSE 50 index benchmark data
 │   │   │   ├── get_daily_price_a_stock.py # 📥 A-share data fetching script
 │   │   │   └── merge_a_stock_jsonl.py     # 🔄 A-share data format conversion
+│   │   ├── crypto/                # ₿ Cryptocurrency market data
+│   │   │   ├── coin/                        # 📊 Individual crypto price files
+│   │   │   │   ├── daily_prices_BTC.json   # Bitcoin price data
+│   │   │   │   ├── daily_prices_ETH.json   # Ethereum price data
+│   │   │   │   └── ...                      # Other cryptocurrency data
+│   │   │   ├── crypto_merged.jsonl         # 🔄 Crypto unified data format
+│   │   │   ├── get_daily_price_crypto.py   # 📥 Crypto data fetching script
+│   │   │   └── merge_crypto_jsonl.py       # 🔄 Crypto data format conversion
 │   │   ├── agent_data/            # 📝 AI trading records (NASDAQ 100)
-│   │   └── agent_data_astock/     # 📝 A-share AI trading records
+│   │   ├── agent_data_astock/     # 📝 A-share AI trading records
+│   │   └── agent_data_crypto/     # 📝 Cryptocurrency AI trading records
 │   └── calculate_performance.py   # 📈 Performance analysis
 │
 ├── 💬 Prompt System
@@ -213,6 +226,9 @@ AI-Trader Bench/
         ├── main_a_stock_step1.sh  # A-shares: Data preparation
         ├── main_a_stock_step2.sh  # A-shares: Start MCP services
         ├── main_a_stock_step3.sh  # A-shares: Run trading agent
+        ├── main_crypto_step1.sh   # Crypto: Data preparation
+        ├── main_crypto_step2.sh   # Crypto: Start MCP services
+        ├── main_crypto_step3.sh   # Crypto: Run trading agent
         └── start_ui.sh            # Start web UI interface
 ```
 
@@ -230,37 +246,39 @@ AI-Trader Bench/
 |-----------|-------------|----------|----------|
 | **BaseAgent** | `agent.base_agent` | US/A-shares generic | Flexible market switching, configurable stock pool |
 | **BaseAgentAStock** | `agent.base_agent_astock` | A-share specific | Built-in A-share rules, SSE 50 default pool, Chinese prompts |
+| **BaseAgentCrypto** | `agent.base_agent_crypto` | Cryptocurrency specific | BITWISE10 crypto pool, 24/7 trading support, USDT denominated |
 
 **Architecture Advantages**:
-- 🔄 **Clear Separation**: US and A-share agents independently maintained without interference
-- 🎯 **Specialized Optimization**: A-share agent deeply optimized for Chinese market characteristics
-- 🔌 **Easy Extension**: Support adding more market-specific agents (e.g., Hong Kong stocks, cryptocurrencies)
+- 🔄 **Clear Separation**: US, A-share, and cryptocurrency agents independently maintained without interference
+- 🎯 **Specialized Optimization**: Each agent deeply optimized for specific market characteristics
+- 🔌 **Easy Extension**: Support adding more market-specific agents (e.g., Hong Kong stocks, commodities)
 
 #### 🛠️ MCP Toolchain
 | Tool | Function | Market Support | API |
 |------|----------|----------------|-----|
-| **Trading Tool** | Buy/sell stocks, position management | 🇺🇸 US / 🇨🇳 A-shares | `buy()`, `sell()` |
-| **Price Tool** | Real-time and historical price queries | 🇺🇸 US / 🇨🇳 A-shares | `get_price_local()` |
+| **Trading Tool** | Buy/sell assets, position management | 🇺🇸 US / 🇨🇳 A-shares / ₿ Crypto | `buy()`, `sell()` |
+| **Price Tool** | Real-time and historical price queries | 🇺🇸 US / 🇨🇳 A-shares / ₿ Crypto | `get_price_local()` |
 | **Search Tool** | Market information search | Global markets | `get_information()` |
 | **Math Tool** | Financial calculations and analysis | Generic | Basic mathematical operations |
 
 **Tool Features**:
-- 🔍 **Auto-Recognition**: Automatically select data source based on stock code suffix (.SH/.SZ)
-- 📏 **Rule Adaptation**: Auto-apply corresponding market trading rules (T+0/T+1, lot size limits, etc.)
-- 🌐 **Unified Interface**: Same API interface supports multi-market trading
+- 🔍 **Auto-Recognition**: Automatically select data source based on symbol format (stock codes or crypto symbols)
+- 📏 **Rule Adaptation**: Auto-apply corresponding market trading rules (T+0/T+1, lot sizes, 24/7 trading, etc.)
+- 🌐 **Unified Interface**: Same API interface supports multi-market trading across stocks and cryptocurrencies
 
 #### 📊 Data System
-- **📈 Price Data**: 
+- **📈 Price Data**:
   - 🇺🇸 Complete OHLCV data for NASDAQ 100 component stocks (Alpha Vantage)
   - 🇨🇳 A-share market data (SSE 50 Index) via Tushare API
+  - ₿ Cryptocurrency market data (BITWISE10) via Alpha Vantage
   - 📁 Unified JSONL format for efficient reading
-- **📝 Trading Records**: 
+- **📝 Trading Records**:
   - Detailed trading history for each AI model
-  - Stored separately by market: `agent_data/` (US), `agent_data_astock/` (A-shares)
-- **📊 Performance Metrics**: 
+  - Stored separately by market: `agent_data/` (US), `agent_data_astock/` (A-shares), `agent_data_crypto/` (Crypto)
+- **📊 Performance Metrics**:
   - Sharpe ratio, maximum drawdown, annualized returns, etc.
   - Support multi-market performance comparison analysis
-- **🔄 Data Synchronization**: 
+- **🔄 Data Synchronization**:
   - Automated data acquisition and update mechanisms
   - Independent data fetching scripts with incremental update support
 
@@ -352,6 +370,14 @@ bash scripts/main_a_stock_step2.sh  # Step 2: Start MCP services
 bash scripts/main_a_stock_step3.sh  # Step 3: Run A-share trading agent
 ```
 
+#### ₿ Cryptocurrency Market (BITWISE10)
+```bash
+# Run step by step:
+bash scripts/main_crypto_step1.sh  # Step 1: Prepare crypto data
+bash scripts/main_crypto_step2.sh  # Step 2: Start MCP services
+bash scripts/main_crypto_step3.sh  # Step 3: Run crypto trading agent
+```
+
 #### 🌐 Web UI
 ```bash
 # Start web interface
@@ -416,6 +442,12 @@ python main.py configs/default_config.json
 python main.py configs/astock_config.json
 ```
 
+#### For Cryptocurrencies (BITWISE10):
+```bash
+# 🎯 Run cryptocurrency trading
+python main.py configs/default_crypto_config.json
+```
+
 ### ⏰ Time Settings Example
 
 #### 📅 US Stock Configuration Example (Using BaseAgent)
@@ -466,6 +498,29 @@ python main.py configs/astock_config.json
 
 > 💡 **Tip**: When using `BaseAgentAStock`, the `market` parameter is automatically set to `"cn"` and doesn't need to be specified manually.
 
+#### 📅 Cryptocurrency Configuration Example (Using BaseAgentCrypto)
+```json
+{
+  "agent_type": "BaseAgentCrypto",  // Cryptocurrency specific agent
+  "market": "crypto",               // Market type: "crypto" for cryptocurrencies
+  "date_range": {
+    "init_date": "2025-10-20",      // Backtest start date
+    "end_date": "2025-10-31"         // Backtest end date
+  },
+  "models": [
+    {
+      "name": "deepseek-v3.2",
+      "enabled": true,
+      "basemodel": "deepseek-chat",
+      "signature": "deepseek-v3.2"
+    }
+  ],
+  "agent_config": {
+    "initial_cash": 50000.0        // Initial capital: 50,000 USDT
+  }
+}
+```
+
 ### 📈 Start Web Interface
 
 ```bash
@@ -478,14 +533,14 @@ python3 -m http.server 8000
 
 ### 🏆 Competition Rules
 
-| Rule Item | US Stocks | A-Shares (China) |
-|-----------|-----------|------------------|
-| **💰 Initial Capital** | $10,000 | ¥100,000 |
-| **📈 Trading Targets** | NASDAQ 100 | SSE 50 |
-| **🌍 Market** | US Stock Market | China A-Share Market |
-| **⏰ Trading Hours** | Weekdays | Weekdays |
-| **💲 Price Benchmark** | Opening Price | Opening Price |
-| **📝 Recording Method** | JSONL Format | JSONL Format |
+| Rule Item | US Stocks | A-Shares (China) | Cryptocurrencies |
+|-----------|-----------|------------------|------------------|
+| **💰 Initial Capital** | $10,000 | ¥100,000 | 50,000 USDT |
+| **📈 Trading Targets** | NASDAQ 100 | SSE 50 | BITWISE10 Top Cryptocurrencies |
+| **🌍 Market** | US Stock Market | China A-Share Market | Global Crypto Market |
+| **⏰ Trading Hours** | Weekdays | Weekdays | 24/7 |
+| **💲 Price Benchmark** | Opening Price | Opening Price | Opening Price |
+| **📝 Recording Method** | JSONL Format | JSONL Format | JSONL Format |
 
 ## ⚙️ Configuration Guide
 
@@ -660,10 +715,10 @@ class CustomTool:
 
 ### 🌟 Future Plans
 - [x] **🇨🇳 A-Share Support** - ✅ SSE 50 Index data integration completed
+- [x] **₿ Cryptocurrency** - ✅ BITWISE10 digital currency trading support completed
 - [ ] **📊 Post-Market Statistics** - Automatic profit analysis
 - [ ] **🔌 Strategy Marketplace** - Add third-party strategy sharing platform
 - [ ] **🎨 Cool Frontend Interface** - Modern web dashboard
-- [ ] **₿ Cryptocurrency** - Support digital currency trading
 - [ ] **📈 More Strategies** - Technical analysis, quantitative strategies
 - [ ] **⏰ Advanced Replay** - Support minute-level time precision and real-time replay
 - [ ] **🔍 Smart Filtering** - More precise future information detection and filtering
