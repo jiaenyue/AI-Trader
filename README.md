@@ -76,7 +76,7 @@ Each AI model starts with $10,000, 100,000¥, or 50,000 USDT to trade NASDAQ 100
   - NASDAQ 100 component stocks (top 100 technology stocks)
   - SSE 50 component stocks
   - Major cryptocurrencies (BTC, ETH, XRP, SOL, ADA, SUI, LINK, AVAX, LTC, DOT)
-- ⏰ **Trading Schedule**: 24/7 for cryptocurrencies, weekday market hours for stocks with historical simulation support
+- ⏰ **Trading Schedule**: Entire Week for cryptocurrencies, weekday market hours for stocks with historical simulation support
 - 📊 **Data Integration**: Alpha Vantage API combined with Jina AI market intelligence
 - 🔄 **Time Management**: Historical period replay with automated future information filtering
 
@@ -246,7 +246,7 @@ AI-Trader Bench/
 |-----------|-------------|----------|----------|
 | **BaseAgent** | `agent.base_agent` | US/A-shares generic | Flexible market switching, configurable stock pool |
 | **BaseAgentAStock** | `agent.base_agent_astock` | A-share specific | Built-in A-share rules, SSE 50 default pool, Chinese prompts |
-| **BaseAgentCrypto** | `agent.base_agent_crypto` | Cryptocurrency specific | BITWISE10 crypto pool, 24/7 trading support, USDT denominated |
+| **BaseAgentCrypto** | `agent.base_agent_crypto` | Cryptocurrency specific | BITWISE10 crypto pool, USDT denominated |
 
 **Architecture Advantages**:
 - 🔄 **Clear Separation**: US, A-share, and cryptocurrency agents independently maintained without interference
@@ -256,14 +256,14 @@ AI-Trader Bench/
 #### 🛠️ MCP Toolchain
 | Tool | Function | Market Support | API |
 |------|----------|----------------|-----|
-| **Trading Tool** | Buy/sell assets, position management | 🇺🇸 US / 🇨🇳 A-shares / ₿ Crypto | `buy()`, `sell()` |
+| **Trading Tool** | Buy/sell assets, position management | 🇺🇸 US / 🇨🇳 A-shares / ₿ Crypto | `buy()`, `sell()` / `buy_crypto()`, `sell_crypto()` (For Crypto)|
 | **Price Tool** | Real-time and historical price queries | 🇺🇸 US / 🇨🇳 A-shares / ₿ Crypto | `get_price_local()` |
 | **Search Tool** | Market information search | Global markets | `get_information()` |
 | **Math Tool** | Financial calculations and analysis | Generic | Basic mathematical operations |
 
 **Tool Features**:
 - 🔍 **Auto-Recognition**: Automatically select data source based on symbol format (stock codes or crypto symbols)
-- 📏 **Rule Adaptation**: Auto-apply corresponding market trading rules (T+0/T+1, lot sizes, 24/7 trading, etc.)
+- 📏 **Rule Adaptation**: Auto-apply corresponding market trading rules (T+0/T+1, lot sizes etc.)
 - 🌐 **Unified Interface**: Same API interface supports multi-market trading across stocks and cryptocurrencies
 
 #### 📊 Data System
@@ -538,7 +538,7 @@ python3 -m http.server 8000
 | **💰 Initial Capital** | $10,000 | ¥100,000 | 50,000 USDT |
 | **📈 Trading Targets** | NASDAQ 100 | SSE 50 | BITWISE10 Top Cryptocurrencies |
 | **🌍 Market** | US Stock Market | China A-Share Market | Global Crypto Market |
-| **⏰ Trading Hours** | Weekdays | Weekdays | 24/7 |
+| **⏰ Trading Hours** | Weekdays | Weekdays | Entire Week |
 | **💲 Price Benchmark** | Opening Price | Opening Price | Opening Price |
 | **📝 Recording Method** | JSONL Format | JSONL Format | JSONL Format |
 
@@ -551,8 +551,8 @@ python3 -m http.server 8000
   "agent_type": "BaseAgent",
   "market": "us",
   "date_range": {
-    "init_date": "2025-01-01",
-    "end_date": "2025-01-31"
+    "init_date": "2025-10-01",
+    "end_date": "2025-10-30"
   },
   "models": [
     {
@@ -579,11 +579,11 @@ python3 -m http.server 8000
 | Parameter | Description | Options | Default Value |
 |-----------|-------------|---------|---------------|
 | `agent_type` | AI agent type | "BaseAgent" (generic)<br>"BaseAgentAStock" (A-share specific) | "BaseAgent" |
-| `market` | Market type | "us" (US stocks)<br>"cn" (A-shares)<br>Note: Auto-set to "cn" when using BaseAgentAStock | "us" |
+| `market` | Market type | "us" (US stocks)<br>"cn" (A-shares)<br>"crypto" (Cryptocurrency)<br>Note: Auto-set to "cn" when using BaseAgentAStock, "crypto" when using BaseAgentCrypto | "us" |
 | `max_steps` | Maximum reasoning steps | Positive integer | 30 |
 | `max_retries` | Maximum retry attempts | Positive integer | 3 |
 | `base_delay` | Operation delay (seconds) | Float | 1.0 |
-| `initial_cash` | Initial capital | Float | $10,000 (US)<br>¥100,000 (A-shares) |
+| `initial_cash` | Initial capital | Float | $10,000 (US)<br>¥100,000 (A-shares) <br> 50,000-USDT (Cryptocurrency) |
 
 #### 📋 Agent Type Details
 
@@ -591,6 +591,7 @@ python3 -m http.server 8000
 |-----------|-------------------|----------|
 | **BaseAgent** | US / A-shares | • Generic trading agent<br>• Switch markets via `market` parameter<br>• Flexible stock pool configuration |
 | **BaseAgentAStock** | A-share specific | • Optimized for A-shares<br>• Built-in A-share trading rules (100-share lots, T+1)<br>• Default SSE 50 stock pool<br>• Chinese Yuan pricing |
+| **BaseAgentCrypto** | Crypto specific | • Default BITWISE 10<br>• USDT pricing |
 
 ### 📊 Data Format
 
