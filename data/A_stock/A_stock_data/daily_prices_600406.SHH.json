@@ -2,11 +2,18 @@
     "Meta Data": {
         "1. Information": "Daily Prices (open, high, low, close) and Volumes",
         "2. Symbol": "600406.SHH",
-        "3. Last Refreshed": "2025-11-06",
+        "3. Last Refreshed": "2025-11-07",
         "4. Output Size": "Full size",
         "5. Time Zone": "US/Eastern"
     },
     "Time Series (Daily)": {
+        "2025-11-07": {
+            "1. open": "25.2900",
+            "2. high": "25.8600",
+            "3. low": "25.0000",
+            "4. close": "25.1500",
+            "5. volume": "87010434"
+        },
         "2025-11-06": {
             "1. open": "24.9400",
             "2. high": "25.8500",
