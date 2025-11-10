@@ -135,8 +135,8 @@ def buy_crypto(symbol: str, amount: float) -> Dict[str, Any]:
         # Insufficient cash, return error message
         return {
             "error": "Insufficient cash! This action will not be allowed.",
-            "required_cash": this_symbol_price * amount,
-            "cash_available": current_position.get("CASH", 0),
+            "required_cash": round(this_symbol_price * amount, 4),
+            "cash_available": round(current_position.get("CASH", 0), 4),
             "symbol": symbol,
             "date": today_date,
         }
@@ -145,11 +145,11 @@ def buy_crypto(symbol: str, amount: float) -> Dict[str, Any]:
         # Create a copy of current position to avoid directly modifying original data
         new_position = current_position.copy()
 
-        # Decrease cash balance
-        new_position["CASH"] = cash_left
+        # Decrease cash balance with 4 decimal precision
+        new_position["CASH"] = round(cash_left, 4)
 
-        # Increase crypto position quantity
-        new_position[symbol] += amount
+        # Increase crypto position quantity with 4 decimal precision
+        new_position[symbol] = round(new_position[symbol] + amount, 4)
 
         # Step 6: Record transaction to position.jsonl file
         # Build file path: {project_root}/data/{log_path}/{signature}/position/position.jsonl
@@ -280,12 +280,12 @@ def sell_crypto(symbol: str, amount: float) -> Dict[str, Any]:
     # Create a copy of current position to avoid directly modifying original data
     new_position = current_position.copy()
 
-    # Decrease crypto position quantity
-    new_position[symbol] -= amount
+    # Decrease crypto position quantity with 4 decimal precision
+    new_position[symbol] = round(new_position[symbol] - amount, 4)
 
-    # Increase cash balance: sell price × sell quantity
+    # Increase cash balance: sell price × sell quantity with 4 decimal precision
     # Use get method to ensure CASH field exists, default to 0 if not present
-    new_position["CASH"] = new_position.get("CASH", 0) + this_symbol_price * amount
+    new_position["CASH"] = round(new_position.get("CASH", 0) + this_symbol_price * amount, 4)
 
     # Step 6: Record transaction to position.jsonl file
     # Build file path: {project_root}/data/{log_path}/{signature}/position/position.jsonl
