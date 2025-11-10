@@ -110,75 +110,76 @@ def buy_crypto(symbol: str, amount: float) -> Dict[str, Any]:
             print(e)
             print(today_date, signature)
             return {"error": f"Failed to load latest position: {e}", "symbol": symbol, "date": today_date}
-    # Step 3: Get cryptocurrency opening price for the day
-    # Use get_open_prices function to get the opening price of specified crypto for the day
-    # If crypto symbol does not exist or price data is missing, KeyError exception will be raised
-    try:
-        this_symbol_price = get_open_prices(today_date, [symbol], market=market)[f"{symbol}_price"]
-    except KeyError:
-        # Crypto symbol does not exist or price data is missing, return error message
-        return {
-            "error": f"Symbol {symbol} not found! This action will not be allowed.",
-            "symbol": symbol,
-            "date": today_date,
-        }
+        # Step 3: Get cryptocurrency opening price for the day
+        # Use get_open_prices function to get the opening price of specified crypto for the day
+        # If crypto symbol does not exist or price data is missing, KeyError exception will be raised
+        try:
+            this_symbol_price = get_open_prices(today_date, [symbol], market=market)[f"{symbol}_price"]
+        except KeyError:
+            # Crypto symbol does not exist or price data is missing, return error message
+            return {
+                "error": f"Symbol {symbol} not found! This action will not be allowed.",
+                "symbol": symbol,
+                "date": today_date,
+            }
 
-    # Step 4: Validate buy conditions
-    # Calculate cash required for purchase: crypto price × buy quantity
-    try:
-        cash_left = current_position["CASH"] - this_symbol_price * amount
-    except Exception as e:
-        print(current_position, "CASH", this_symbol_price, amount)
+        # Step 4: Validate buy conditions
+        # Calculate cash required for purchase: crypto price × buy quantity
+        try:
+            cash_left = current_position["CASH"] - this_symbol_price * amount
+        except Exception as e:
+            print(current_position, "CASH", this_symbol_price, amount)
 
-    # Check if cash balance is sufficient for purchase
-    if cash_left < 0:
-        # Insufficient cash, return error message
-        return {
-            "error": "Insufficient cash! This action will not be allowed.",
-            "required_cash": round(this_symbol_price * amount, 4),
-            "cash_available": round(current_position.get("CASH", 0), 4),
-            "symbol": symbol,
-            "date": today_date,
-        }
-    else:
-        # Step 5: Execute buy operation, update position
-        # Create a copy of current position to avoid directly modifying original data
-        new_position = current_position.copy()
+        # Check if cash balance is sufficient for purchase
+        if cash_left < 0:
+            # Insufficient cash, return error message
+            return {
+                "error": "Insufficient cash! This action will not be allowed.",
+                "required_cash": round(this_symbol_price * amount, 4),
+                "cash_available": round(current_position.get("CASH", 0), 4),
+                "symbol": symbol,
+                "date": today_date,
+            }
+        else:
+            # Step 5: Execute buy operation, update position
+            # Create a copy of current position to avoid directly modifying original data
+            new_position = current_position.copy()
 
-        # Decrease cash balance with 4 decimal precision
-        new_position["CASH"] = round(cash_left, 4)
+            # Decrease cash balance with 4 decimal precision
+            new_position["CASH"] = round(cash_left, 4)
 
-        # Increase crypto position quantity with 4 decimal precision
-        new_position[symbol] = round(new_position[symbol] + amount, 4)
+            # Increase crypto position quantity with 4 decimal precision
+            new_position[symbol] = round(new_position[symbol] + amount, 4)
 
-        # Step 6: Record transaction to position.jsonl file
-        # Build file path: {project_root}/data/{log_path}/{signature}/position/position.jsonl
-        # Use append mode ("a") to write new transaction record
-        # Each operation ID increments by 1, ensuring uniqueness of operation sequence
-        log_path = get_config_value("LOG_PATH", "./data/agent_data")
-        if log_path.startswith("./data/"):
-            log_path = log_path[7:]  # Remove "./data/" prefix
-        position_file_path = os.path.join(project_root, "data", log_path, signature, "position", "position.jsonl")
-        with open(position_file_path, "a") as f:
-            # Write JSON format transaction record, containing date, operation ID, transaction details and updated position
-            print(
-                f"Writing to position.jsonl: {json.dumps({'date': today_date, 'id': current_action_id + 1, 'this_action':{'action':'buy_crypto','symbol':symbol,'amount':amount},'positions': new_position})}"
-            )
-            f.write(
-                json.dumps(
-                    {
-                        "date": today_date,
-                        "id": current_action_id + 1,
-                        "this_action": {"action": "buy_crypto", "symbol": symbol, "amount": amount},
-                        "positions": new_position,
-                    }
+            # Step 6: Record transaction to position.jsonl file
+            # Build file path: {project_root}/data/{log_path}/{signature}/position/position.jsonl
+            # Use append mode ("a") to write new transaction record
+            # Each operation ID increments by 1, ensuring uniqueness of operation sequence
+            log_path = get_config_value("LOG_PATH", "./data/agent_data")
+            if log_path.startswith("./data/"):
+                log_path = log_path[7:]  # Remove "./data/" prefix
+            position_file_path = os.path.join(project_root, "data", log_path, signature, "position", "position.jsonl")
+            with open(position_file_path, "a") as f:
+                # Write JSON format transaction record, containing date, operation ID, transaction details and updated position
+                print(
+                    f"Writing to position.jsonl: {json.dumps({'date': today_date, 'id': current_action_id + 1, 'this_action':{'action':'buy_crypto','symbol':symbol,'amount':amount},'positions': new_position})}"
                 )
-                + "\n"
-            )
-        # Step 7: Return updated position
-        write_config_value("IF_TRADE", True)
-        print("IF_TRADE", get_config_value("IF_TRADE"))
-        return new_position
+                f.write(
+                    json.dumps(
+                        {
+                            "date": today_date,
+                            "id": current_action_id + 1,
+                            "this_action": {"action": "buy_crypto", "symbol": symbol, "amount": amount},
+                            "positions": new_position,
+                        }
+                    )
+                    + "\n"
+                )
+            # Step 7: Return updated position
+            write_config_value("IF_TRADE", True)
+            print("IF_TRADE", get_config_value("IF_TRADE"))
+        
+    return new_position
 
 
 @mcp.tool()
@@ -242,78 +243,86 @@ def sell_crypto(symbol: str, amount: float) -> Dict[str, Any]:
     # Step 2: Get current latest position and operation ID
     # get_latest_position returns two values: position dictionary and current maximum operation ID
     # This ID is used to ensure each operation has a unique identifier
-    current_position, current_action_id = get_latest_position(today_date, signature)
+    with _position_lock(signature):
+        try:
+            current_position, current_action_id = get_latest_position(today_date, signature)
+        except Exception as e:
+            print(e)
+            print(today_date, signature)
+            return {"error": f"Failed to load latest position: {e}",
+                    "symbol": symbol,
+                    "date": today_date}
+        # Step 3: Get cryptocurrency opening price for the day
+        # Use get_open_prices function to get the opening price of specified crypto for the day
+        # If crypto symbol does not exist or price data is missing, KeyError exception will be raised
+        try:
+            this_symbol_price = get_open_prices(today_date, [symbol], market=market)[f"{symbol}_price"]
+        except KeyError:
+            # Crypto symbol does not exist or price data is missing, return error message
+            return {
+                "error": f"Symbol {symbol} not found! This action will not be allowed.",
+                "symbol": symbol,
+                "date": today_date,
+            }
 
-    # Step 3: Get cryptocurrency opening price for the day
-    # Use get_open_prices function to get the opening price of specified crypto for the day
-    # If crypto symbol does not exist or price data is missing, KeyError exception will be raised
-    try:
-        this_symbol_price = get_open_prices(today_date, [symbol], market=market)[f"{symbol}_price"]
-    except KeyError:
-        # Crypto symbol does not exist or price data is missing, return error message
-        return {
-            "error": f"Symbol {symbol} not found! This action will not be allowed.",
-            "symbol": symbol,
-            "date": today_date,
-        }
+        # Step 4: Validate sell conditions
+        # Check if holding this crypto
+        if symbol not in current_position:
+            return {
+                "error": f"No position for {symbol}! This action will not be allowed.",
+                "symbol": symbol,
+                "date": today_date,
+            }
 
-    # Step 4: Validate sell conditions
-    # Check if holding this crypto
-    if symbol not in current_position:
-        return {
-            "error": f"No position for {symbol}! This action will not be allowed.",
-            "symbol": symbol,
-            "date": today_date,
-        }
+        # Check if position quantity is sufficient for selling
+        if current_position[symbol] < amount:
+            return {
+                "error": "Insufficient crypto! This action will not be allowed.",
+                "have": current_position.get(symbol, 0),
+                "want_to_sell": amount,
+                "symbol": symbol,
+                "date": today_date,
+            }
 
-    # Check if position quantity is sufficient for selling
-    if current_position[symbol] < amount:
-        return {
-            "error": "Insufficient crypto! This action will not be allowed.",
-            "have": current_position.get(symbol, 0),
-            "want_to_sell": amount,
-            "symbol": symbol,
-            "date": today_date,
-        }
+        # Step 5: Execute sell operation, update position
+        # Create a copy of current position to avoid directly modifying original data
+        new_position = current_position.copy()
 
-    # Step 5: Execute sell operation, update position
-    # Create a copy of current position to avoid directly modifying original data
-    new_position = current_position.copy()
+        # Decrease crypto position quantity with 4 decimal precision
+        new_position[symbol] = round(new_position[symbol] - amount, 4)
 
-    # Decrease crypto position quantity with 4 decimal precision
-    new_position[symbol] = round(new_position[symbol] - amount, 4)
+        # Increase cash balance: sell price × sell quantity with 4 decimal precision
+        # Use get method to ensure CASH field exists, default to 0 if not present
+        new_position["CASH"] = round(new_position.get("CASH", 0) + this_symbol_price * amount, 4)
 
-    # Increase cash balance: sell price × sell quantity with 4 decimal precision
-    # Use get method to ensure CASH field exists, default to 0 if not present
-    new_position["CASH"] = round(new_position.get("CASH", 0) + this_symbol_price * amount, 4)
-
-    # Step 6: Record transaction to position.jsonl file
-    # Build file path: {project_root}/data/{log_path}/{signature}/position/position.jsonl
-    # Use append mode ("a") to write new transaction record
-    # Each operation ID increments by 1, ensuring uniqueness of operation sequence
-    log_path = get_config_value("LOG_PATH", "./data/agent_data")
-    if log_path.startswith("./data/"):
-        log_path = log_path[7:]  # Remove "./data/" prefix
-    position_file_path = os.path.join(project_root, "data", log_path, signature, "position", "position.jsonl")
-    with open(position_file_path, "a") as f:
-        # Write JSON format transaction record, containing date, operation ID and updated position
-        print(
-            f"Writing to position.jsonl: {json.dumps({'date': today_date, 'id': current_action_id + 1, 'this_action':{'action':'sell_crypto','symbol':symbol,'amount':amount},'positions': new_position})}"
-        )
-        f.write(
-            json.dumps(
-                {
-                    "date": today_date,
-                    "id": current_action_id + 1,
-                    "this_action": {"action": "sell_crypto", "symbol": symbol, "amount": amount},
-                    "positions": new_position,
-                }
+        # Step 6: Record transaction to position.jsonl file
+        # Build file path: {project_root}/data/{log_path}/{signature}/position/position.jsonl
+        # Use append mode ("a") to write new transaction record
+        # Each operation ID increments by 1, ensuring uniqueness of operation sequence
+        log_path = get_config_value("LOG_PATH", "./data/agent_data")
+        if log_path.startswith("./data/"):
+            log_path = log_path[7:]  # Remove "./data/" prefix
+        position_file_path = os.path.join(project_root, "data", log_path, signature, "position", "position.jsonl")
+        with open(position_file_path, "a") as f:
+            # Write JSON format transaction record, containing date, operation ID and updated position
+            print(
+                f"Writing to position.jsonl: {json.dumps({'date': today_date, 'id': current_action_id + 1, 'this_action':{'action':'sell_crypto','symbol':symbol,'amount':amount},'positions': new_position})}"
             )
-            + "\n"
-        )
+            f.write(
+                json.dumps(
+                    {
+                        "date": today_date,
+                        "id": current_action_id + 1,
+                        "this_action": {"action": "sell_crypto", "symbol": symbol, "amount": amount},
+                        "positions": new_position,
+                    }
+                )
+                + "\n"
+            )
 
-    # Step 7: Return updated position
-    write_config_value("IF_TRADE", True)
+        # Step 7: Return updated position
+        write_config_value("IF_TRADE", True)
+    
     return new_position
 
 
