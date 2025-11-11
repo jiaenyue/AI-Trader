@@ -28,6 +28,8 @@
 - [TradeTrap](https://github.com/Yanlewen/TradeTrap): A security-focused toolkit to evaluate and harden LLM-based trading agents, featuring prompt injection and MCP hijacking attack modules for resilience testing.
 
 - [RockAlpha](https://rockalpha.rockflow.ai/): The investment arena launched by RockFlow. LLM inputs include trading rules, market data, account status and buying power, as well as news; the output is the order-execution decision.
+
+- [TwinMarket](https://github.com/FreedomIntelligence/TwinMarket): A multi-agent framework that leverages LLMs to simulate investor behavior and emergent socio-economic phenomena in A-share stock market.
 ---
 ## 🎉 Weekly Update
 
