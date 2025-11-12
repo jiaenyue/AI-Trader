@@ -84,8 +84,64 @@
 - 🔌 **可扩展策略框架**: 支持第三方策略和自定义AI代理集成
 - ⏰ **历史回放功能**: 时间段回放功能，自动过滤未来信息
 
+---
+
+### 🧠 AI代理核心策略解析
+
+AI-Trader的核心驱动力是其背后的大语言模型（LLM）代理。这些代理的交易行为并非基于预设的硬编码规则，而是源于一个精心设计的 **系统提示词（System Prompt）**，它定义了代理的角色、目标、可用信息和必须遵守的规则。
+
+#### 核心策略：基本面分析
+
+AI代理被赋予 **“基本面分析交易助手”** 的角色。它的核心任务是：
+1.  **分析输入信息**：理解并利用每日提供的持仓、现金、股价和收益数据。
+2.  **运用工具推理**：通过调用工具（如 `search`、`get_price`）来收集更多市场信息，以辅助决策。
+3.  **最大化收益**：以长期收益最大化为最终目标，制定并执行交易策略。
+
+这种设计使得AI代理的行为类似于一位人类基金经理，它需要结合数据和外部信息，进行独立的思考和判断。
+
+#### 提示词（Prompt）设计
+
+系统每天都会动态生成一个提示词，作为AI代理当天所有决策的基础。这个提示词包含了以下关键信息：
+
+- **今日日期**：`{date}`
+- **昨日收盘持仓**：`{positions}` - 详细列出每只股票的持有数量和剩余现金。
+- **昨日收盘价格**：`{yesterday_close_price}`
+- **今日开盘价格**：`{today_buy_price}` - 这是AI代理执行交易的参考价格。
+- **昨日收益情况**：`{yesterday_profit}`
+
+这个提示词不仅提供了决策所需的数据，更重要的是，它为AI代理 **设定了行为框架和规则**。
+
+#### 决策过程
+
+AI代理的决策过程是一个 **“思考-行动”** 的循环，具体步骤如下：
+1.  **接收任务**：系统向AI代理发出指令：“请分析并更新今日的持仓。”
+2.  **推理与工具调用**：AI代理根据提示词中的信息和规则进行推理。如果需要更多信息（例如某公司的最新财报），它会调用 `search` 工具；如果需要执行交易，它会调用 `buy` 或 `sell` 工具。
+3.  **执行与反馈**：系统执行AI代理调用的工具，并将结果返回给它。例如，如果AI决定购买100股贵州茅台，系统会执行交易并告知AI：“交易成功”。
+4.  **循环或终止**：AI代理会持续这个循环，直到它认为当天的工作已经完成。此时，它会输出一个特殊的终止信号 **`<FINISH_SIGNAL>`**，结束当天的交易会话。
 
 ---
+
+### 🇨🇳 A股市场特别说明
+
+为了更好地适应中国A股市场的独特性，系统设计了专用的 `BaseAgentAStock` 代理和相应的提示词 `agent_prompt_astock.py`。
+
+#### 规则硬编码
+
+A股市场的核心交易规则被直接 **硬编码** 在系统提示词中，强制AI代理遵守：
+1.  **一手交易要求**：所有买卖订单必须是100股的整数倍。
+2.  **T+1结算规则**：当天买入的股票不能在当天卖出。
+3.  **涨跌停限制**：明确告知AI代理不同类型股票的涨跌幅限制。
+
+通过这种方式，即使AI模型本身不完全了解A股规则，也能在框架的约束下进行 **合规交易**。
+
+#### 专用工具链与数据
+
+- **默认股票池**：A股代理默认使用 **上证50成分股** 作为其交易范围。
+- **中文支持**：提示词中的股票价格等信息会附带中文名称，方便AI理解。
+- **数据来源**：系统通过 [Tushare](https://tushare.pro/) API获取A股市场的行情数据，确保了数据的准确性和及时性。
+
+这些针对性设计，使得AI-Trader不仅是一个通用的交易框架，更是一个能深度适应特定市场环境的 **本地化交易系统**。
+
 
 ### 🎮 交易环境
 每个AI模型以$10,000、100,000¥或50,000 USDT起始资金在受控环境中交易纳斯达克100股票、上证50股票或主流加密货币，使用真实市场数据和历史回放功能。
@@ -873,3 +929,128 @@ AI-Trader项目所提供的资料仅供研究之用，并不构成任何投资�
   <em> ❤️ 感谢访问 ✨ AI-Trader!</em><br><br>
   <img src="https://visitor-badge.laobi.icu/badge?page_id=HKUDS.AI-Trader&style=for-the-badge&color=00d4ff" alt="Views">
 </p>
+
+---
+
+## 附录：A股ETF交易配置指南
+
+本文档将指导您如何配置 AI-Trader 项目，以便使用 [Open Router](https://openrouter.ai/) 上的免费大语言模型（例如 `tngtech/deepseek-r1t2-chimera:free`），并对自定义的A股ETF列表进行交易和历史回测。
+
+### 1. 配置Open Router作为模型提供方
+
+首先，您需要一个 Open Router 账号来获取API密钥。
+
+#### 步骤 1：修改 `.env` 文件
+
+在项目根目录下找到 `.env` 文件（如果不存在，请从 `.env.example` 复制一份），并进行如下修改：
+
+```bash
+# 🤖 AI模型API配置
+# 将 OPENAI_API_BASE 指向 Open Router 的API地址
+OPENAI_API_BASE=https://openrouter.ai/api/v1
+
+# 将 OPENAI_API_KEY 填入您的 Open Router 密钥
+OPENAI_API_KEY=sk-or-v1-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+```
+
+**关键点**：
+-   `OPENAI_API_BASE` 必须是 `https://openrouter.ai/api/v1`。
+-   `OPENAI_API_KEY` 是您在 Open Router 网站上生成的密钥，通常以 `sk-or-v1-` 开头。
+
+---
+
+### 2. 配置交易代理使用自定义ETF
+
+接下来，我们需要修改A股的配置文件，让AI代理使用指定的 `deepseek` 模型和您的ETF列表。
+
+#### 步骤 1：修改 `configs/astock_config.json`
+
+打开 `configs/astock_config.json` 文件，并进行如下修改：
+
+```json
+{
+  "agent_type": "BaseAgentAStock",
+  "market": "cn",
+  "date_range": {
+    "init_date": "2025-10-01",
+    "end_date": "2025-10-29"
+  },
+  "models": [
+    {
+      "name": "deepseek-chimera",
+      // 这里填入您想使用的 Open Router 模型标识符
+      "basemodel": "tngtech/deepseek-r1t2-chimera:free",
+      "signature": "deepseek-chimera-trader",
+      "enabled": true // 确保这个模型是启用的
+    }
+    // 您可以禁用或删除其他不需要的模型
+  ],
+  "agent_config": {
+    "max_steps": 30,
+    "max_retries": 3,
+    "base_delay": 1.0,
+    "initial_cash": 100000.0,
+    // 在这里添加 stock_symbols 字段，并填入您的ETF代码列表
+    "stock_symbols": [
+      "510300.SH", // 沪深300ETF
+      "588000.SH", // 科创50ETF
+      "159915.SZ"  // 创业板ETF
+    ]
+  },
+  "log_config": {
+    "log_path": "./data/agent_data_astock"
+  }
+}
+```
+
+**关键点**：
+-   **`basemodel`**：填入您选择的 Open Router 模型全名。
+-   **`enabled`**：确保您要使用的模型设置为 `true`。
+-   **`stock_symbols`**：在 `agent_config` 中新增此字段。这是一个数组，包含了您希望AI代理交易的所有ETF的代码。**请务必使用Tushare的代码格式**（例如，上交所ETF以 `.SH` 结尾，深交所ETF以 `.SZ` 结尾）。
+
+---
+
+### 3. 获取ETF历史行情数据
+
+AI-Trader 需要历史数据来进行回测。我们已经对数据获取脚本 `get_daily_price_tushare.py` 进行了更新，以支持ETF数据下载。
+
+#### 步骤 1：运行脚本下载数据
+
+您现在可以直接运行 `data/A_stock/get_daily_price_tushare.py` 脚本来下载您在其中定义的ETF列表的行情数据。
+
+```bash
+python data/A_stock/get_daily_price_tushare.py
+```
+该脚本现在默认会下载 `510300.SH`, `588000.SH`, 和 `159915.SZ` 的数据，并将它们保存到 `data/A_stock/daily_prices_etfs.csv`。
+
+#### 步骤 2：转换数据格式
+
+下载完成后，您还需要运行 `merge_jsonl_tushare.py` 脚本，将CSV数据转换为系统所需的 `merged.jsonl` 格式。
+
+```bash
+# 进入 data/A_stock 目录
+cd data/A_stock
+
+# 运行转换脚本
+python merge_jsonl_tushare.py
+```
+*您可能需要稍微修改 `merge_jsonl_tushare.py` 以确保它读取的是 `daily_prices_etfs.csv` 而不是默认的指数成分股文件。*
+
+---
+
+### 4. 运行交易与回测
+
+完成以上所有配置和数据准备后，您就可以像往常一样启动AI-Trader了。
+
+1.  **启动MCP服务**
+    ```bash
+    bash scripts/main_a_stock_step2.sh
+    ```
+2.  **运行A股交易代理**
+    ```bash
+    bash scripts/main_a_stock_step3.sh
+    ```
+
+系统现在将加载您配置的 `deepseek` 模型，并只针对您提供的ETF列表进行分析和交易。
+
+祝您交易愉快！

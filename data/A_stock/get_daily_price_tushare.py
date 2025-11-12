@@ -364,14 +364,98 @@ def get_index_daily_data(
         return None
 
 
+def get_daily_price_for_etfs(
+    etf_codes: list,
+    start_date: str = "20250101",
+    end_date: Optional[str] = None,
+    output_dir: Optional[Path] = None,
+) -> Optional[pd.DataFrame]:
+    """
+    Get daily price data for a list of A-share ETFs.
+
+    Args:
+        etf_codes: List of ETF codes (e.g., ["510300.SH", "159915.SZ"])
+        start_date: Start date for daily price data in 'YYYYMMDD' format
+        end_date: End date in 'YYYYMMDD' format, defaults to today
+        output_dir: Output directory, defaults to './data/A_stock'
+
+    Returns:
+        pd.DataFrame: DataFrame containing daily price data, None if failed
+    """
+    token = os.getenv("TUSHARE_TOKEN")
+    if not token:
+        print("Error: TUSHARE_TOKEN not found")
+        return None
+
+    ts.set_token(token)
+    pro = ts.pro_api()
+
+    if end_date is None:
+        end_date = datetime.now().strftime("%Y%m%d")
+
+    all_etf_data = []
+    print(f"开始获取ETF日线数据，共 {len(etf_codes)} 只ETF...")
+
+    for code in etf_codes:
+        print(f"正在获取 {code} 的数据 ({start_date} - {end_date})...")
+        try:
+            df_etf = api_call_with_retry(
+                pro.fund_daily,
+                pro_api_instance=pro,
+                ts_code=code,
+                start_date=start_date,
+                end_date=end_date,
+                timeout=120
+            )
+            if not df_etf.empty:
+                all_etf_data.append(df_etf)
+                print(f"✅ 成功获取 {code} 的 {len(df_etf)} 条记录")
+            else:
+                print(f"⚠️ 未找到 {code} 的数据")
+            time.sleep(0.5)  # 遵守Tushare接口频率限制
+        except Exception as e:
+            print(f"❌ 获取 {code} 数据时出错: {e}")
+
+    if not all_etf_data:
+        print("未能获取到任何ETF数据")
+        return None
+
+    df_combined = pd.concat(all_etf_data, ignore_index=True)
+    df_combined = df_combined.sort_values(by=["trade_date", "ts_code"]).reset_index(drop=True)
+
+    if output_dir is None:
+        output_dir = Path(__file__).parent
+    else:
+        output_dir = Path(output_dir)
+
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    # 保存为CSV文件，方便后续处理
+    output_file = output_dir / "daily_prices_etfs.csv"
+    df_combined.to_csv(output_file, index=False, encoding="utf-8")
+    print(f"所有ETF数据已保存至: {output_file} (总记录数: {len(df_combined)})")
+
+    return df_combined
+
+
 if __name__ == "__main__":
-    fallback_path = Path(__file__).parent / "sse_50_weight.csv"
+    # 定义您在配置文件中使用的ETF列表
+    my_etf_list = [
+        "510300.SH",
+        "588000.SH",
+        "159915.SZ"
+    ]
 
-    # Get constituent stocks daily prices
-    df = get_daily_price_a_stock(index_code="000016.SH", daily_start_date="20251001", fallback_csv=fallback_path)
+    # 调用新函数下载ETF数据
+    get_daily_price_for_etfs(etf_codes=my_etf_list, start_date="20240101")
 
-    # Get index daily data and convert to JSON
-    print("\n" + "=" * 50)
-    print("Fetching index daily data...")
-    print("=" * 50)
-    df_index = get_index_daily_data(index_code="000016.SH", start_date="20251001")
+    # 原来的函数调用可以根据需要保留或注释
+    # print("\n" + "=" * 50)
+    # print("Fetching index constituents data...")
+    # fallback_path = Path(__file__).parent / "sse_50_weight.csv"
+    # df = get_daily_price_a_stock(index_code="000016.SH", daily_start_date="20251001", fallback_csv=fallback_path)
+
+    # print("\n" + "=" * 50)
+    # print("Fetching index daily data...")
+    # print("=" * 50)
+    # df_index = get_index_daily_data(index_code="000016.SH", start_date="20251001")
